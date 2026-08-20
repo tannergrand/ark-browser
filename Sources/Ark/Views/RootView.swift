@@ -242,17 +242,6 @@ struct RootView: View {
                         VStack {
                             CommandBar().padding(.top, 120).jellyAppear()
                             Spacer()
-                            // The blank pane behind this is covered by the colour
-                            // field, so the card has to live on the overlay too —
-                            // otherwise it only ever appeared after dismissing
-                            // the command bar, which is not when you'd look.
-                            if state.commandBarMode == .newTab {
-                                HStack {
-                                    VerseCard().padding(28)
-                                    Spacer()
-                                }
-                                .task { await state.refreshVerse() }
-                            }
                         }
                     }
                     .padding(.top, Layout.contentInset)

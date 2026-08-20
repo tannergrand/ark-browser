@@ -8,65 +8,12 @@ import UniformTypeIdentifiers
 /// exits. Exists because the app's UI can't be driven headlessly, so this is how
 /// the vault, CSV import, URL resolution, and blocker rules get verified.
 enum SelfTest {
-    /// `--verse` exercises the whole suggestion path against the real saved
-    /// history and prints each stage. The card is three layers deep in the UI,
-    /// so "no verse appeared" could be availability, the model, the parser, or
-    /// the lookup — this says which.
-    static func runVerseProbe() {
-        let semaphore = DispatchSemaphore(value: 0)
-        Task.detached {
-            say("Apple Intelligence available: \(VerseSuggestion.isAvailable)")
-            VerseSuggestion.debugLog = { say("  [model] " + $0) }
-            // History is read straight off disk rather than through
-            // BrowserState. The first version blocked the main thread on the
-            // semaphore and then awaited MainActor.run, which deadlocked — the
-            // main actor can't run while the main thread is parked.
-            let history = loadHistoryFromDisk()
-            let titles = VerseSuggestion.themes(from: history)
-            say("history entries: \(history.count), usable titles: \(titles.count)")
-            for title in titles.prefix(5) { say("  - \(title)") }
-            guard titles.count >= 3 else {
-                say("STOP: fewer than 3 usable titles")
-                semaphore.signal()
-                return
-            }
-            if let verse = await VerseSuggestion.suggest(history: history) {
-                say("reference:   \(verse.reference)")
-                say("translation: \(verse.translation)")
-                say("text:        \(verse.text)")
-                say("connection:  \(verse.connection)")
-            } else {
-                say("STOP: suggest() returned nil")
-            }
-            semaphore.signal()
-        }
-        semaphore.wait()
-    }
-
-    private static func loadHistoryFromDisk() -> [HistoryEntry] {
-        let url = FileManager.default.urls(for: .applicationSupportDirectory,
-                                           in: .userDomainMask)[0]
-            .appendingPathComponent("Ark/state.json")
-        guard let data = try? Data(contentsOf: url),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let rows = object["history"] as? [[String: Any]] else { return [] }
-        return rows.compactMap { row in
-            guard let title = row["title"] as? String,
-                  let link = row["url"] as? String else { return nil }
-            return HistoryEntry(title: title, url: link, visitedAt: Date())
-        }
-    }
-
     /// Unbuffered, so output survives a killed probe.
     private static func say(_ message: String) {
         FileHandle.standardError.write((message + "\n").data(using: .utf8)!)
     }
 
     static func runIfRequested() {
-        if CommandLine.arguments.contains("--verse") {
-            runVerseProbe()
-            exit(0)
-        }
         guard CommandLine.arguments.contains("--selftest") else { return }
         var failures = 0
 
@@ -484,7 +431,6 @@ enum SelfTest {
               && BrowserTab.parseCSSColor("rgb(13, 17, 23)") != nil
               && BrowserTab.parseCSSColor("rgba(13, 17, 23, 0.1)") == nil)
 
-        // Verse suggestions: the model returns a reference and nothing else, so
         // the parser is the only thing standing between it and a wrong lookup.
         // Snooze policy. The sweep itself needs live web views; the policy
         // doesn't, so it is the part worth pinning down.
@@ -628,81 +574,50 @@ enum SelfTest {
         check("a lookalike host is refused",
               !Updater.isTrustedAssetURL(URL(string: "https://github.com.evil.example/a.zip")!))
 
-        check("verse line parses",
-              VerseSuggestion.parse("Philippians 4:6|Anxiety showed up a lot today.")?.reference
-              == "Philippians 4:6")
-        check("verse parser tolerates a bulleted line",
-              VerseSuggestion.parse("- 1 Peter 5:7 | Cast your cares.")?.reference == "1 Peter 5:7")
-        check("verse parser normalises Phil. 4.6 form",
-              VerseSuggestion.canonicalReference("Philippians. 4.6") == "Philippians 4:6")
-        // The tolerant path. The on-device model does not honour the strict
-        // format, so these shapes are the ones that actually arrive.
-        check("verse parser handles the shape the model really returns",
-              VerseSuggestion.parse("Philippians 4:6 \"Do not be anxious about anything...\"")?.reference
-              == "Philippians 4:6",
-              "reference plus a quotation, no pipe")
-        check("verse parser handles a dash and a trailing paragraph",
+        // The ripple: a packet that starts at the caret and runs right, with the
+        // ends pinned so the bar's corners never move.
+        let bar: CGFloat = 620
+        let early = JellyWave(travel: 0, origin: 0.2, amplitude: 1)
+        let late = JellyWave(travel: 1, origin: 0.2, amplitude: 1)
+        check("the crest starts near the caret",
+              abs(early.displacement(at: bar * 0.2, width: bar))
+              > abs(early.displacement(at: bar * 0.8, width: bar)))
+        check("the crest ends up to the right of where it began",
+              abs(late.displacement(at: bar * 0.8, width: bar))
+              > abs(late.displacement(at: bar * 0.2, width: bar)))
+        check("a later caret starts the wave further right",
               {
-                  let raw = """
-                  Philippians 4:6 - "Do not be anxious about anything."
-
-                  This verse speaks to managing anxiety through prayer.
-                  """
-                  let parsed = VerseSuggestion.parse(raw)
-                  return parsed?.reference == "Philippians 4:6"
-                      && parsed?.connection.contains("prayer") == true
+                  let right = JellyWave(travel: 0, origin: 0.8, amplitude: 1)
+                  return abs(right.displacement(at: bar * 0.8, width: bar))
+                      > abs(right.displacement(at: bar * 0.2, width: bar))
               }())
-        check("the model's own quotation is never used as the connection",
-              {
-                  let raw = "Psalms 23:1 \"The Lord is my shepherd.\""
-                  let parsed = VerseSuggestion.parse(raw)
-                  return parsed?.connection.contains("shepherd") == false
-              }(),
-              "quoted lines are excluded — the text is looked up, not borrowed")
-        check("verse parser finds nothing in prose without a reference",
-              VerseSuggestion.parse("I could not find a fitting verse today.") == nil)
-        check("verse parser rejects an invented book",
-              VerseSuggestion.canonicalReference("Hezekiah 3:4") == nil)
-        check("verse parser rejects a range",
-              VerseSuggestion.canonicalReference("Philippians 4:6-7") == nil,
-              "showing one verse of a two-verse claim is a different claim")
-        check("verse parser rejects a bare book",
-              VerseSuggestion.canonicalReference("Philippians") == nil)
-        check("verse parser rejects a chapter with no verse",
-              VerseSuggestion.canonicalReference("Philippians 4") == nil)
-        // A bare reference is now accepted with no connection line — the card
-        // simply omits that row. Rejecting it lost a perfectly good verse.
-        check("a bare reference parses with an empty connection",
-              {
-                  let parsed = VerseSuggestion.parse("Philippians 4:6")
-                  return parsed?.reference == "Philippians 4:6" && parsed?.connection == ""
-              }())
-        check("numbered books survive",
-              VerseSuggestion.canonicalReference("2 Corinthians 12:9") == "2 Corinthians 12:9")
-        check("a non-default translation falls back to the WEB",
-              VerseSuggestion.lookupOrder(for: "ylt") == ["ylt", "web"],
-              "YLT has no Old Testament")
-        check("the default translation doesn't retry itself",
-              VerseSuggestion.lookupOrder(for: "web") == ["web"])
-        check("every translation is addressable by id",
-              VerseSuggestion.translations.allSatisfy {
-                  VerseSuggestion.translation(id: $0.id)?.label == $0.label
-              })
-        check("translation ids are unique",
-              Set(VerseSuggestion.translations.map(\.id)).count
-              == VerseSuggestion.translations.count)
+        check("both ends stay pinned",
+              early.displacement(at: 0, width: bar) == 0
+              && early.displacement(at: bar, width: bar) == 0,
+              "a wave that moved the corners would look like the bar sliding")
+        check("no amplitude means no displacement",
+              JellyWave(travel: 0.5, origin: 0.5, amplitude: 0)
+                  .displacement(at: bar / 2, width: bar) == 0)
+        check("the wave loses energy as it runs",
+              abs(late.displacement(at: bar * 0.95, width: bar))
+              < abs(early.displacement(at: bar * 0.2, width: bar)))
 
-        check("verse themes use titles only, deduped",
+        // The blank-tab tint has to resemble the field it is taken from.
+        check("a field's signature colour is a blend, not one accent",
               {
-                  let now = Date()
-                  let entries = [HistoryEntry(title: "Rock RMS groups", url: "https://a/x?token=secret",
-                                              visitedAt: now),
-                                 HistoryEntry(title: "Rock RMS groups", url: "https://b", visitedAt: now),
-                                 HistoryEntry(title: "ok", url: "https://c", visitedAt: now)]
-                  let themes = VerseSuggestion.themes(from: entries)
-                  return themes == ["Rock RMS groups"]
-              }(),
-              "duplicate titles collapse; short ones and URLs are dropped")
+                  // Palette 0 runs indigo → violet → cyan → teal. Blending the
+                  // drawn blobs must not come back as the violet accent alone,
+                  // which is what left the sidebar purple over a teal field.
+                  let signature = NSColor(LiquidBackdrop.signature(seed: 0))
+                      .usingColorSpace(.sRGB)!
+                  let violet = NSColor(srgbRed: 0.35, green: 0.24, blue: 0.78, alpha: 1)
+                  let distance = abs(signature.redComponent - violet.redComponent)
+                      + abs(signature.greenComponent - violet.greenComponent)
+                      + abs(signature.blueComponent - violet.blueComponent)
+                  return distance > 0.1
+              }())
+        check("signature colours are stable for a seed",
+              LiquidBackdrop.signature(seed: 7) == LiquidBackdrop.signature(seed: 7))
 
         check("tint scales with intensity",
               GlassRamp.tintOpacity(1.0) > GlassRamp.tintOpacity(0.0),

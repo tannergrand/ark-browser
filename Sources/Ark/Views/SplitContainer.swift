@@ -148,11 +148,6 @@ private struct PaneView: View {
             // blank white pane. Seeded from the tab id, so it stays put.
             if tab.urlString.isEmpty {
                 LiquidBackdrop(seed: tab.id.hashValue, dimming: 0.10)
-                VerseCard()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity,
-                           alignment: .bottomLeading)
-                    .padding(28)
-                    .task { await state.refreshVerse() }
             } else {
                 Color(nsColor: .textBackgroundColor)
             }

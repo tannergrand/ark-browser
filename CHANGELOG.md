@@ -38,6 +38,35 @@ them.
 
 ---
 
+## v0.27.1 — Verse removed, the ripple follows the caret (2026-08-20)
+
+### Removed
+
+- **The verse card is gone**, along with `VerseSuggestion`, `VerseCard`, the
+  translation setting, the `--verse` probe, and its 12 tests. Blank tabs are just
+  the colour field again.
+
+### Fixed
+
+- **Why the sidebar was purple over a blue field.** Two causes, both real. The
+  blank-tab tint used `palette[1]` — the first accent — but the accent that
+  *names* a palette isn't the colour that ends up covering the tile; it now
+  blends the blobs actually drawn, weighted by area. And the command-bar overlay
+  seeded its field from `newTabSeed` while the pane behind it seeded from the
+  tab id, so the sidebar could be tinted from a field you weren't looking at.
+  One seed now feeds all three.
+
+### Changed
+
+- **The command-bar ripple starts at the caret and runs right.** It was a
+  standing wave with a fixed envelope; it's now a travelling packet — origin at
+  the caret (estimated from text length, since `TextField` doesn't expose its
+  cursor), moving rightward, losing energy as it goes, ends pinned so the
+  corners never move. Sampling went from 28 to 44 steps: a narrow packet sampled
+  coarsely shows a visible kink.
+
+---
+
 ## v0.27.0 — Pinned URLs are editable (2026-08-20)
 
 ### Added

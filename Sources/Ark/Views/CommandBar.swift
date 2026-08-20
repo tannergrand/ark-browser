@@ -63,13 +63,22 @@ struct CommandBar: View {
         .onChange(of: text) { _, new in
             selection = 0
             scheduleAISuggestions(for: new)
-            wave.strike(reduced: Motion.reduced)
+            wave.strike(caret: caretFraction, reduced: Motion.reduced)
         }
         .onDisappear { aiTask?.cancel() }
     }
 
     private var rippleShape: JellyWave {
-        JellyWave(phase: wave.phase, amplitude: wave.amplitude, cornerRadius: 14)
+        JellyWave(travel: wave.travel, origin: wave.origin,
+                  amplitude: wave.amplitude, cornerRadius: 14)
+    }
+
+    /// Where the caret is, as a fraction of the bar — estimated from the text
+    /// length, since a SwiftUI `TextField` doesn't expose its cursor position.
+    /// The field starts ~46pt in and a character is ~7pt at this size.
+    private var caretFraction: Double {
+        let x = 46 + Double(text.count) * 7.0
+        return min(max(x / 620, 0.04), 0.96)
     }
 
     // MARK: - Field

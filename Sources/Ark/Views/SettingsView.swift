@@ -517,48 +517,6 @@ private struct AISettings: View {
                 }
             }
 
-            Section("New tab") {
-                Toggle("Suggest a verse from recent history", isOn: Binding(
-                    get: { state.verseSuggestionsEnabled },
-                    set: {
-                        state.verseSuggestionsEnabled = $0
-                        if !$0 { state.verse = nil }
-                        state.save()
-                    }
-                ))
-                if state.verseSuggestionsEnabled {
-                    Picker("Translation", selection: Binding(
-                        get: { state.verseTranslation },
-                        set: {
-                            state.verseTranslation = $0
-                            state.verse = nil
-                            state.save()
-                            Task { await state.refreshVerse(force: true) }
-                        }
-                    )) {
-                        ForEach(VerseSuggestion.translations) { entry in
-                            Text(entry.label).tag(entry.id)
-                        }
-                    }
-                    if let caveat = VerseSuggestion.translation(id: state.verseTranslation)?.caveat {
-                        Text(caveat)
-                            .font(.caption).foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Text("Ten English editions, all public domain — which is why they're queryable without a key. NIV, ESV, NLT and NASB are licensed and no open API serves them at any length. The card always names the edition that actually answered, so a fallback never misattributes the text.")
-                        .font(.caption).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Text("Apple Intelligence only — the prompt summarises your recent page titles, which is not something to send to a remote API. Titles only: never URLs, query strings, or page content. The model returns a reference and never writes scripture; the text is looked up from the World English Bible (public domain) and the card links out if the lookup fails.")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                if !VerseSuggestion.isAvailable {
-                    Label("Apple Intelligence unavailable — no verse will be shown.",
-                          systemImage: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-
             Section("Page assistant") {
                 Text("Uses \(ClaudeClient.model). Page text is sent as context when you ask a question, and is labeled as untrusted data in the prompt.")
                     .font(.caption).foregroundStyle(.secondary)

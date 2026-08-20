@@ -142,8 +142,6 @@ final class BrowserState {
     /// the interactive (pointer-tracking) variant.
     var glassIntensity: Double = 0.6
     /// Tint the sidebar with the active page's dominant colour, Arc-style.
-    /// 0…1. How strongly the page colour shows in the sidebar.
-    var chromeTintStrength: Double = 0.55
     /// What the sidebar's surface is made of. One slider drives whichever is
     /// picked, so intensity always means "more of the thing you chose".
     var sidebarStyle: SidebarStyle = .pageTint
@@ -189,40 +187,8 @@ final class BrowserState {
             else { chromeTintStrength = newValue }
         }
     }
-    /// Suggest a verse on blank tabs, from the themes in recent history.
-    var verseSuggestionsEnabled: Bool = true
-    /// Which translation the verse text is looked up in.
-    var verseTranslation: String = "web"
-    /// The current suggestion. Refreshed at most once an hour, and only on
-    /// demand — nothing runs in the background.
-    var verse: VerseSuggestion.Verse?
-    @ObservationIgnored private var verseTask: Task<Void, Never>?
-
-    /// Picks a verse for what's in recent history. On-device only: the prompt
-    /// summarises browsing, so it never goes to a remote API.
-    @MainActor
-    func refreshVerse(force: Bool = false) async {
-        guard verseSuggestionsEnabled, VerseSuggestion.isAvailable else {
-            verse = nil
-            return
-        }
-        if !force, let existing = verse,
-           Date().timeIntervalSince(existing.fetchedAt) < 3600 { return }
-        // One in flight at a time; opening three blank tabs shouldn't start
-        // three model sessions.
-        guard verseTask == nil else { return }
-        let snapshot = history
-        let translation = verseTranslation
-        let task = Task { @MainActor [weak self] in
-            let result = await VerseSuggestion.suggest(history: snapshot,
-                                                      translation: translation)
-            if let result { self?.verse = result }
-            self?.verseTask = nil
-        }
-        verseTask = task
-        await task.value
-    }
-
+    /// 0…1. How strongly the page colour shows in the sidebar.
+    var chromeTintStrength: Double = 0.55
     /// The colour the sidebar should be tinted with right now.
     var chromeTint: Color? {
         switch sidebarStyle {
@@ -413,6 +379,10 @@ final class BrowserState {
                                       previousFocused: focusedTabID)
         let tab = newTab()
         pendingNewTab?.tabID = tab.id
+        // One seed for the overlay's field, the blank pane's field, and the
+        // sidebar tint. They were drawing from two different palettes, so the
+        // sidebar could be tinted from a field you weren't looking at.
+        newTabSeed = tab.id.hashValue
         return tab
     }
 
@@ -1588,8 +1558,6 @@ final class BrowserState {
         var aiSuggestionsEnabled: Bool
         var glassChrome: Bool?
         var glassIntensity: Double?
-        var verseSuggestionsEnabled: Bool?
-        var verseTranslation: String?
         var chromeTintStrength: Double?
         var sidebarStyle: String?
         /// Pre-picker flag. Keeps the original key name — renaming it would
@@ -1649,8 +1617,6 @@ final class BrowserState {
             aiSuggestionsEnabled: aiSuggestionsEnabled,
             glassChrome: glassChrome,
             glassIntensity: glassIntensity,
-            verseSuggestionsEnabled: verseSuggestionsEnabled,
-            verseTranslation: verseTranslation,
             chromeTintStrength: chromeTintStrength,
             sidebarStyle: sidebarStyle.rawValue,
             sidebarColorRGB: sidebarColorRGB,
@@ -1702,8 +1668,6 @@ final class BrowserState {
         aiSuggestionsEnabled = shot.aiSuggestionsEnabled
         glassChrome = shot.glassChrome ?? true
         glassIntensity = min(max(shot.glassIntensity ?? 0.6, 0), 1)
-        verseSuggestionsEnabled = shot.verseSuggestionsEnabled ?? true
-        verseTranslation = shot.verseTranslation ?? "web"
         chromeTintStrength = shot.chromeTintStrength ?? 0.55
         // Migration: a state file written before the style picker carries the
         // old boolean. Honour it once — someone who had page tinting off wanted

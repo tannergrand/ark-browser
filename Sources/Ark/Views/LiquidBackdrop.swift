@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// A soft field of blurred colour, used behind the new-tab command bar and on
@@ -72,12 +73,40 @@ struct LiquidBackdrop: View {
     }
 
     /// The one colour that stands for a field, so chrome can be tinted to match
-    /// a blank tab the same way it is tinted from a real page. The first accent
-    /// rather than the deep base — the base is nearly black and would read as no
-    /// tint at all.
+    /// a blank tab the same way it is tinted from a real page.
+    ///
+    /// This used to return `palette[1]` — the first accent — which is why a
+    /// teal-and-blue field could leave the sidebar purple: the accent that
+    /// *names* the palette is not the colour that ends up covering most of the
+    /// tile. Now it blends the blobs actually drawn, weighted by how much area
+    /// each one occupies, which is much closer to what the eye reports.
     static func signature(seed: Int) -> Color {
         let colors = palette(seed: seed)
-        return colors.count > 1 ? colors[1] : (colors.first ?? .clear)
+        guard !colors.isEmpty else { return .clear }
+        var rand = Rand(seed)
+        var totals = (r: 0.0, g: 0.0, b: 0.0, weight: 0.0)
+
+        // The deep base covers the whole tile, so it counts — but at a fraction,
+        // since the accents are what read as the colour.
+        add(colors[0], weight: 0.5, to: &totals)
+        for color in colors.dropFirst() {
+            _ = rand.next(); _ = rand.next()          // consume the position draws
+            let scale = rand.inRange(0.55, 1.15)      // same sequence as `blobs`
+            add(color, weight: scale * scale, to: &totals)
+        }
+        guard totals.weight > 0 else { return colors[0] }
+        return Color(red: totals.r / totals.weight,
+                     green: totals.g / totals.weight,
+                     blue: totals.b / totals.weight)
+    }
+
+    private static func add(_ color: Color, weight: Double,
+                            to totals: inout (r: Double, g: Double, b: Double, weight: Double)) {
+        guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return }
+        totals.r += Double(rgb.redComponent) * weight
+        totals.g += Double(rgb.greenComponent) * weight
+        totals.b += Double(rgb.blueComponent) * weight
+        totals.weight += weight
     }
 
     private var blobs: [Blob] {
