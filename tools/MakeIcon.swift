@@ -31,85 +31,85 @@ ctx.saveGState()
 ctx.setShadow(offset: CGSize(width: 0, height: -18),
               blur: 44,
               color: hex(0x000000, 0.42).cgColor)
-hex(0x1B1B3A).setFill()
+hex(0x0A0C11).setFill()
 squircle.fill()
 ctx.restoreGState()
 
-// --- Body gradient: deep indigo into cyan, the app's accent range
+// --- Body: near-black, with just enough gradient to avoid looking like a flat
+// swatch. The old indigo-to-cyan wash was the loudest thing on the Dock; a dark
+// tile lets the mark be the only thing you read.
 ctx.saveGState()
 squircle.setClip()
-let body = NSGradient(colors: [hex(0x1E1B4B), hex(0x4338CA), hex(0x0EA5E9), hex(0x22D3EE)],
-                      atLocations: [0.0, 0.42, 0.80, 1.0],
+let body = NSGradient(colors: [hex(0x161A22), hex(0x0D1016), hex(0x090B0F)],
+                      atLocations: [0.0, 0.55, 1.0],
                       colorSpace: .sRGB)!
-body.draw(in: art, angle: -55)
+body.draw(in: art, angle: -78)
 
-// Vignette so the edges read as glass rather than flat paint
-let vignette = NSGradient(colors: [hex(0x000000, 0.0), hex(0x000000, 0.30)],
-                          atLocations: [0.45, 1.0], colorSpace: .sRGB)!
-vignette.draw(in: art, relativeCenterPosition: NSPoint(x: -0.25, y: 0.35))
+// One cool highlight behind the mark, very faint. Depth without colour.
+NSGradient(colors: [hex(0x2E5A7A, 0.30), hex(0x2E5A7A, 0.0)],
+           atLocations: [0.0, 1.0], colorSpace: .sRGB)!
+    .draw(in: art.insetBy(dx: side * 0.06, dy: side * 0.06),
+          relativeCenterPosition: NSPoint(x: 0, y: 0.12))
 
-// --- A simplified ark: hull, cabin, and a waterline. Two curves and three
-// rectangles, no detail — at 32pt in the Dock, anything finer turns to mud, and
-// the silhouette is what has to read.
+// --- The mark: one hull, one cabin, one waterline. Centred as a *group* rather
+// than individually — centring the hull alone leaves the whole thing looking
+// low, because the cabin sits above it and carries visual weight.
+//
+// Simplified from the earlier version, which had a stacked roof and two
+// waterlines. At 32pt in the Dock those extra strokes closed up into a smudge.
 func fill(_ path: NSBezierPath, _ color: NSColor) {
     color.setFill()
     path.fill()
 }
 
-let hullTop = art.midY - side * 0.06
-let hullDepth = side * 0.20
-let hullLeft = art.minX + side * 0.16
-let hullRight = art.maxX - side * 0.16
+// Proportions tuned by rendering at 64pt and looking: at that size a deep hull
+// and a wide cabin merge into one blob that reads like an arrow. A shallower,
+// wider hull with a narrower cabin keeps the boat silhouette legible.
+let markWidth = side * 0.66
+let hullDepth = side * 0.155
+let cabinHeight = side * 0.145
+let waterGap = side * 0.075
+let waterWeight = side * 0.034
 
-// Hull: a flat deck with a curved bottom, tapered at both ends.
+// Total height of hull + cabin + waterline, so the group can be centred.
+let markHeight = cabinHeight + hullDepth + waterGap + waterWeight
+let groupBottom = art.midY - markHeight / 2
+let waterY = groupBottom + waterWeight / 2
+let hullBottom = waterY + waterGap
+let deckY = hullBottom + hullDepth
+
+let hullLeft = art.midX - markWidth / 2
+let hullRight = art.midX + markWidth / 2
+
+// Hull: flat deck, curved bottom, tapered ends.
 let hull = NSBezierPath()
-hull.move(to: NSPoint(x: hullLeft, y: hullTop))
-hull.curve(to: NSPoint(x: hullRight, y: hullTop),
-           controlPoint1: NSPoint(x: art.midX - side * 0.10, y: hullTop - hullDepth * 1.5),
-           controlPoint2: NSPoint(x: art.midX + side * 0.10, y: hullTop - hullDepth * 1.5))
+hull.move(to: NSPoint(x: hullLeft, y: deckY))
+hull.curve(to: NSPoint(x: hullRight, y: deckY),
+           controlPoint1: NSPoint(x: art.midX - markWidth * 0.26, y: hullBottom - hullDepth * 0.75),
+           controlPoint2: NSPoint(x: art.midX + markWidth * 0.26, y: hullBottom - hullDepth * 0.75))
 hull.close()
-fill(hull, hex(0xFFFFFF, 0.95))
+fill(hull, hex(0xFFFFFF, 0.96))
 
-// Cabin: one box, plus a shorter one stacked on top. Centred slightly aft.
-let cabinWidth = side * 0.40
-let cabinHeight = side * 0.14
-let cabinX = art.midX - cabinWidth * 0.52
+// Cabin: one block, centred.
+let cabinWidth = markWidth * 0.34
 let cabin = NSBezierPath(roundedRect:
-    NSRect(x: cabinX, y: hullTop, width: cabinWidth, height: cabinHeight),
-    xRadius: side * 0.018, yRadius: side * 0.018)
-fill(cabin, hex(0xFFFFFF, 0.95))
+    NSRect(x: art.midX - cabinWidth / 2, y: deckY,
+           width: cabinWidth, height: cabinHeight),
+    xRadius: side * 0.02, yRadius: side * 0.02)
+fill(cabin, hex(0xFFFFFF, 0.96))
 
-let roofWidth = cabinWidth * 0.62
-let roof = NSBezierPath(roundedRect:
-    NSRect(x: art.midX - roofWidth * 0.52, y: hullTop + cabinHeight,
-           width: roofWidth, height: cabinHeight * 0.62),
-    xRadius: side * 0.016, yRadius: side * 0.016)
-fill(roof, hex(0xFFFFFF, 0.95))
-
-// Waterline: two strokes under the hull, the far one dimmer. Reads as water
-// without drawing waves.
-func waterline(y: CGFloat, inset: CGFloat, alpha: CGFloat, width: CGFloat) {
-    let line = NSBezierPath()
-    let left = art.minX + side * inset
-    let right = art.maxX - side * inset
-    line.move(to: NSPoint(x: left, y: y))
-    line.curve(to: NSPoint(x: right, y: y),
-               controlPoint1: NSPoint(x: art.midX - side * 0.12, y: y + side * 0.045),
-               controlPoint2: NSPoint(x: art.midX + side * 0.12, y: y - side * 0.045))
-    line.lineWidth = width
-    line.lineCapStyle = .round
-    hex(0xFFFFFF, alpha).setStroke()
-    line.stroke()
-}
-waterline(y: hullTop - hullDepth - side * 0.045, inset: 0.11, alpha: 0.85, width: side * 0.032)
-waterline(y: hullTop - hullDepth - side * 0.115, inset: 0.19, alpha: 0.42, width: side * 0.026)
-
-// --- Specular bloom, upper-left. Radial and fully faded at its edge, so there
-// is no clip boundary to catch the eye.
-let bloom = NSGradient(colors: [hex(0xFFFFFF, 0.40), hex(0xFFFFFF, 0.10), hex(0xFFFFFF, 0.0)],
-                       atLocations: [0.0, 0.45, 1.0], colorSpace: .sRGB)!
-bloom.draw(in: art.insetBy(dx: -side * 0.15, dy: -side * 0.15),
-           relativeCenterPosition: NSPoint(x: -0.45, y: 0.55))
+// Waterline: one stroke, narrower than the hull so the hull reads as sitting in
+// it rather than on it.
+let water = NSBezierPath()
+let waterInset = markWidth * 0.06
+water.move(to: NSPoint(x: hullLeft - waterInset, y: waterY))
+water.curve(to: NSPoint(x: hullRight + waterInset, y: waterY),
+            controlPoint1: NSPoint(x: art.midX - markWidth * 0.22, y: waterY + side * 0.035),
+            controlPoint2: NSPoint(x: art.midX + markWidth * 0.22, y: waterY - side * 0.035))
+water.lineWidth = waterWeight
+water.lineCapStyle = .round
+hex(0xFFFFFF, 0.68).setStroke()
+water.stroke()
 
 ctx.restoreGState()
 
@@ -119,7 +119,7 @@ let topEdge = NSBezierPath(roundedRect: art.insetBy(dx: 5, dy: 5),
                            xRadius: radius - 5, yRadius: radius - 5)
 topEdge.lineWidth = 9
 topEdge.setClip()
-NSGradient(colors: [hex(0xFFFFFF, 0.62), hex(0xFFFFFF, 0.0)],
+NSGradient(colors: [hex(0xFFFFFF, 0.30), hex(0xFFFFFF, 0.0)],
            atLocations: [0.0, 0.55], colorSpace: .sRGB)!
     .draw(in: NSRect(x: art.minX, y: art.midY, width: art.width, height: art.height / 2),
           angle: -90)
@@ -132,13 +132,13 @@ ctx.saveGState()
 let rim = NSBezierPath(roundedRect: art.insetBy(dx: 3, dy: 3),
                        xRadius: radius - 3, yRadius: radius - 3)
 rim.lineWidth = 6
-hex(0xFFFFFF, 0.30).setStroke()
+hex(0xFFFFFF, 0.16).setStroke()
 rim.stroke()
 
 let innerRim = NSBezierPath(roundedRect: art.insetBy(dx: 9, dy: 9),
                             xRadius: radius - 9, yRadius: radius - 9)
 innerRim.lineWidth = 2
-hex(0xFFFFFF, 0.10).setStroke()
+hex(0xFFFFFF, 0.06).setStroke()
 innerRim.stroke()
 
 image.unlockFocus()

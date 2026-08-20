@@ -38,6 +38,26 @@ them.
 
 ---
 
+## v0.28.3 — Darker, simpler icon (2026-08-20)
+
+### Changed
+
+- **New icon.** Near-black tile with a single cool highlight behind the mark,
+  instead of the indigo-to-cyan gradient — that wash was the loudest thing in the
+  Dock, and a dark tile lets the mark be the only thing you read.
+- The mark is simplified to **one hull, one cabin, one waterline**. The previous
+  version had a stacked roof and two waterlines, which closed into a smudge at
+  32pt.
+- Centred as a *group*, not by the hull alone. Centring the hull leaves the whole
+  thing looking low, because the cabin sits above it and carries visual weight.
+- Proportions were tuned by rendering at 48 and 64pt and looking: a deep hull with
+  a wide cabin merges into one blob that reads like a downward arrow. Shallower
+  and wider, with a narrower cabin, keeps the boat legible.
+- Rim and top-edge highlights dropped to roughly a third of their old opacity —
+  on a dark tile the old values read as a glowing outline.
+
+---
+
 ## v0.28.2 — Stop the repeating permission prompt (2026-08-20)
 
 ### Fixed
