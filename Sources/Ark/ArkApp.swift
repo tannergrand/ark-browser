@@ -107,6 +107,17 @@ struct ArkApp: App {
                     // list at launch cost an authorization prompt before the user
                     // had asked for anything.
 
+                    // Release notes for the version just installed, once.
+                    let version = Updater.currentVersion
+                    if let page = WhatsNew.prepare(lastSeen: state.lastSeenVersion,
+                                                   current: version) {
+                        state.openInNewTab(page)
+                    }
+                    if state.lastSeenVersion != version {
+                        state.lastSeenVersion = version
+                        state.save()
+                    }
+
                     // Update check, after the window is up. Silent unless there
                     // is something newer; a launch-time modal for "you're up to
                     // date" is the wrong trade.

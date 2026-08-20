@@ -29,6 +29,10 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Ark"
 
+# The changelog ships inside the bundle: the what's-new page is rendered from it
+# at runtime, so it has to travel with the app rather than living only in git.
+cp CHANGELOG.md "$APP/Contents/Resources/CHANGELOG.md"
+
 # App icon. Regenerate with ./tools/make-icns.sh after editing MakeIcon.swift.
 if [ -f "Resources/AppIcon.icns" ]; then
   cp "Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"

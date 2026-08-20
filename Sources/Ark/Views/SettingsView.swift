@@ -4,14 +4,30 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @Environment(BrowserState.self) private var state
 
+    /// `.tabItem` is the pre-macOS-15 spelling, and on 26 it produced a tab bar
+    /// of seven identical "General" gears — the labels stopped binding to their
+    /// tabs. `Tab` is the current API and gets it right; the old path stays for
+    /// the macOS 14 floor.
     var body: some View {
-        TabView {
-            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
-            PasswordSettings().tabItem { Label("Passwords", systemImage: "key.fill") }
-            OnePasswordSettings().tabItem { Label("1Password", systemImage: "lock.shield") }
-            AISettings().tabItem { Label("AI", systemImage: "sparkles") }
+        Group {
+            if #available(macOS 15.0, *) {
+                TabView {
+                    Tab("General", systemImage: "gearshape") { GeneralSettings() }
+                    Tab("Passwords", systemImage: "key.fill") { PasswordSettings() }
+                    Tab("1Password", systemImage: "lock.shield") { OnePasswordSettings() }
+                    Tab("AI", systemImage: "sparkles") { AISettings() }
+                }
+            } else {
+                TabView {
+                    GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
+                    PasswordSettings().tabItem { Label("Passwords", systemImage: "key.fill") }
+                    OnePasswordSettings().tabItem { Label("1Password", systemImage: "lock.shield") }
+                    AISettings().tabItem { Label("AI", systemImage: "sparkles") }
+                }
+            }
         }
-        .frame(width: 560, height: 420)
+        // 420pt tall clipped the 1Password pane's own button off the bottom.
+        .frame(width: 620, height: 580)
     }
 }
 

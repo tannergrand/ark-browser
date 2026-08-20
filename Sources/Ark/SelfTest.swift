@@ -540,6 +540,49 @@ enum SelfTest {
         check("only two engines are selectable",
               GroupingEngine.selectable == [.appleIntelligence, .claude])
 
+        // What's-new page: which changelog sections a given upgrade shows.
+        let log = """
+        ## v0.27.0 — Later (2026-08-21)
+        - future
+        ## v0.26.1 — Now (2026-08-20)
+        - **bold** and `code`
+        ## v0.26.0 — Before (2026-08-20)
+        - earlier
+        ## Not a version heading
+        - ignored
+        """
+        check("an upgrade shows only what you missed",
+              WhatsNew.sections(from: log, since: "0.26.0", upTo: "0.26.1").count == 1)
+        check("an upgrade never shows unreleased sections",
+              !WhatsNew.sections(from: log, since: "0.26.0", upTo: "0.26.1")
+                  .joined().contains("future"),
+              "a changelog can describe a version this build isn't")
+        check("skipping two versions shows both",
+              WhatsNew.sections(from: log, since: "0.25.0", upTo: "0.26.1").count == 2)
+        check("no previous version means nothing to catch up on",
+              WhatsNew.prepare(lastSeen: nil, current: "0.26.1") == nil,
+              "a fresh install shouldn't open release notes")
+        check("same version shows nothing",
+              WhatsNew.prepare(lastSeen: "0.26.1", current: "0.26.1") == nil)
+        check("an unparseable heading is skipped, not guessed",
+              WhatsNew.parseVersion(from: "## Not a version heading") == nil)
+        check("version parses out of a heading",
+              WhatsNew.parseVersion(from: "## v0.26.1 — Now (2026-08-20)") == "0.26.1")
+        check("markdown renders bold and code",
+              {
+                  let out = WhatsNew.html(
+                      from: WhatsNew.sections(from: log, since: "0.26.0", upTo: "0.26.1"),
+                      version: "0.26.1")
+                  return out.contains("<strong>bold</strong>") && out.contains("<code>code</code>")
+              }())
+        check("only http links survive rendering",
+              {
+                  let out = WhatsNew.html(from: ["## v1.0 — x (2026)\n- [a](javascript:alert(1)) [b](https://ok.example)"],
+                                          version: "1.0")
+                  return !out.contains("javascript:") && out.contains("https://ok.example")
+              }(),
+              "the notes open automatically, so they must not carry a live scheme")
+
         check("newer patch version wins", Updater.isNewer("0.26.1", than: "0.26.0"))
         check("newer minor version wins", Updater.isNewer("0.27", than: "0.26.9"))
         check("same version is not newer", !Updater.isNewer("0.26.0", than: "0.26.0"))

@@ -244,6 +244,9 @@ final class BrowserState {
         return nil
     }
 
+    /// The version whose release notes have already been shown.
+    var lastSeenVersion: String?
+
     /// 0 disables auto-archiving.
     var archiveHours: Double = 12
     /// Minutes of idleness before a background tab's page is freed. 0 is off.
@@ -1563,6 +1566,7 @@ final class BrowserState {
         var groupingEngine: String?
         var archiveHours: Double
         var snoozeMinutes: Double?
+        var lastSeenVersion: String?
         var passwordSource: String?
         var sidebarWidth: Double
         var aiWidth: Double
@@ -1620,6 +1624,7 @@ final class BrowserState {
             groupingEngine: groupingEngine.rawValue,
             archiveHours: archiveHours,
             snoozeMinutes: snoozeMinutes,
+            lastSeenVersion: lastSeenVersion,
             passwordSource: passwords.source.rawValue,
             sidebarWidth: sidebarWidth,
             aiWidth: aiWidth,
@@ -1683,6 +1688,7 @@ final class BrowserState {
         groupingEngine = (saved == nil || saved == .automatic) ? .appleIntelligence : saved!
         archiveHours = shot.archiveHours
         snoozeMinutes = shot.snoozeMinutes ?? 20
+        lastSeenVersion = shot.lastSeenVersion
         if let raw = shot.passwordSource,
            let parsed = PasswordManager.Source(rawValue: raw) {
             passwords.source = parsed

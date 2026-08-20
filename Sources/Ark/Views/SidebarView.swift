@@ -105,17 +105,16 @@ struct SidebarView: View {
                 VStack(spacing: spacing) {
                     ForEach(Array(rows(tabs, perRow: columns).enumerated()), id: \.offset) { _, row in
                         HStack(spacing: spacing) {
+                            // Centred, with the tile size still coming from the
+                            // four-across grid — so a short row sits in the
+                            // middle at the same size rather than stretching or
+                            // hugging the leading edge.
+                            Spacer(minLength: 0)
                             ForEach(row) { tab in
                                 PinnedIcon(tab: tab, size: tile,
                                            renamingID: $renamingID, draft: $draft)
                             }
-                            // Fills the gap in a short final row so the tiles
-                            // stay on the grid instead of spreading out.
-                            if row.count < columns {
-                                ForEach(0..<(columns - row.count), id: \.self) { _ in
-                                    Color.clear.frame(width: tile, height: tile)
-                                }
-                            }
+                            Spacer(minLength: 0)
                         }
                     }
                 }
@@ -567,6 +566,16 @@ private struct TabRow: View {
     @State private var pressAnchor: UnitPoint = .center
     @State private var rowWidth: CGFloat = 1
 
+    /// One squash-and-release. Not tied to mouse-down state: tracking that needs
+    /// a gesture, and a gesture here is what broke dragging.
+    private func squash() {
+        pressing = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(110))
+            pressing = false
+        }
+    }
+
     private var isDisplayed: Bool { state.displayed.contains(tab.id) }
     private var isFocused: Bool { state.focusedTabID == tab.id }
     private var isDragging: Bool { state.drag.draggingTabID == tab.id }
@@ -667,24 +676,6 @@ private struct TabRow: View {
         .contentShape(Rectangle())
         .jellyRow(pressed: pressing, hovering: hovering,
                   dragging: isDragging, selected: isDisplayed, anchor: pressAnchor)
-        // Local-space companion to the global drag gesture below, purely to
-        // learn *where* on the row the press landed.
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0, coordinateSpace: .local)
-                .onChanged { value in
-                    pressAnchor = UnitPoint(
-                        x: min(max(value.startLocation.x / max(rowWidth, 1), 0), 1),
-                        y: 0.5)
-                }
-        )
-        .background {
-            GeometryReader { geo in
-                Color.clear
-                    .onAppear { rowWidth = geo.size.width }
-                    .onChange(of: geo.size.width) { _, new in rowWidth = new }
-            }
-            .allowsHitTesting(false)
-        }
         .onHover { hovering = $0 }
         // Shift-click peeks the tab in an overlay instead of switching to it,
         // matching shift-click on a link.
@@ -695,25 +686,40 @@ private struct TabRow: View {
                 }
             }
         )
-        .onTapGesture { state.show(tab) }
+        // SpatialTapGesture rather than onTapGesture: it reports where the click
+        // landed, which is what anchors the squash. A second DragGesture would
+        // have given the same information and did — along with breaking
+        // reordering and selection outright, because two drag gestures on one
+        // row fight over the same events.
+        .gesture(
+            SpatialTapGesture(coordinateSpace: .local)
+                .onEnded { value in
+                    pressAnchor = UnitPoint(
+                        x: min(max(value.location.x / max(rowWidth, 1), 0), 1), y: 0.5)
+                    squash()
+                    state.show(tab)
+                }
+        )
+        .background {
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { rowWidth = geo.size.width }
+                    .onChange(of: geo.size.width) { _, new in rowWidth = new }
+            }
+            .allowsHitTesting(false)
+        }
         .reportsFrame(state.drag, as: .row(tab.id))
         // minimumDistance keeps a plain click a click; only real movement starts
-        // a drag. Nothing is overlaid, so hit testing is untouched.
+        // a drag. Restored to 8 after a 0 here broke reordering.
         .gesture(
-            DragGesture(minimumDistance: 0, coordinateSpace: .global)
+            DragGesture(minimumDistance: 8, coordinateSpace: .global)
                 .onChanged { value in
-                    // Zero minimum distance so the squash lands on mouse-down.
-                    // A drag still needs 8pt of travel before it becomes a drag.
-                    pressing = true
-                    let travel = abs(value.translation.width) + abs(value.translation.height)
-                    guard travel > 8 || state.drag.draggingTabID == tab.id else { return }
                     if state.drag.draggingTabID == nil {
                         state.drag.begin(tab: tab, at: value.location)
                     }
                     state.drag.update(to: value.location)
                 }
                 .onEnded { _ in
-                    pressing = false
                     withAnimation(Motion.settle) { state.commitDrag() }
                 }
         )
@@ -1015,21 +1021,24 @@ private struct PinnedIcon: View {
                 if let url = tab.webView.url ?? URL(string: tab.urlString) { state.peek(url) }
             }
         )
-        .onTapGesture { state.show(tab) }
+        .onTapGesture {
+            pressing = true
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(110))
+                pressing = false
+            }
+            state.show(tab)
+        }
         .reportsFrame(state.drag, as: .row(tab.id))
         .gesture(
-            DragGesture(minimumDistance: 0, coordinateSpace: .global)
+            DragGesture(minimumDistance: 8, coordinateSpace: .global)
                 .onChanged { value in
-                    pressing = true
-                    let travel = abs(value.translation.width) + abs(value.translation.height)
-                    guard travel > 8 || isDragging else { return }
                     if state.drag.draggingTabID == nil {
                         state.drag.begin(tab: tab, at: value.location)
                     }
                     state.drag.update(to: value.location)
                 }
                 .onEnded { _ in
-                    pressing = false
                     withAnimation(Motion.settle) { state.commitDrag() }
                 }
         )

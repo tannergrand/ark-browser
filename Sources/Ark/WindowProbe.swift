@@ -16,6 +16,13 @@ enum WindowProbe {
     static func armIfRequested(_ state: BrowserState) {
         guard let path = ProcessInfo.processInfo.environment["ARK_PROBE_PNG"] else { return }
         let delay = Double(ProcessInfo.processInfo.environment["ARK_PROBE_DELAY"] ?? "6") ?? 6
+        // Optionally open Settings first, so the probe can look at a panel the
+        // shell can't click on.
+        if ProcessInfo.processInfo.environment["ARK_PROBE_SETTINGS"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + max(1, delay - 2)) {
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            }
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             // State first: a colour reading is meaningless without knowing what
             // the app thought it was drawing.
@@ -35,11 +42,24 @@ enum WindowProbe {
     }
 
     static func capture(to path: String) {
-        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil }),
-              let view = window.contentView else {
+        // Every visible window, not just the first: a settings panel is a second
+        // window, and it is exactly the thing worth looking at.
+        let windows = NSApp.windows.filter { $0.isVisible && $0.contentView != nil }
+        guard !windows.isEmpty else {
             say("no visible window")
             return
         }
+        for (index, window) in windows.enumerated() where index > 0 {
+            let extra = (path as NSString).deletingPathExtension + "-\(index).png"
+            if let view = window.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                view.cacheDisplay(in: view.bounds, to: rep)
+                if let data = rep.representation(using: .png, properties: [:]) {
+                    try? data.write(to: URL(fileURLWithPath: extra))
+                    say("window \(index) \"\(window.title)\" \(Int(view.bounds.width))x\(Int(view.bounds.height)) -> \(extra)")
+                }
+            }
+        }
+        guard let window = windows.first, let view = window.contentView else { return }
         let bounds = view.bounds
         guard let rep = view.bitmapImageRepForCachingDisplay(in: bounds) else {
             say("no bitmap rep")

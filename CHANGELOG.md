@@ -38,6 +38,39 @@ them.
 
 ---
 
+## v0.26.2 — Backlog, what's-new page, settings fixed (2026-08-20)
+
+### Added
+
+- **`BACKLOG.md`** — an Inbox you own, a Queue we agree on, and a Shipped list the
+  release notes draw from. I take Queue items from the top rather than building
+  whatever was mentioned last.
+- **What's-new page on the first launch after an update.** Rendered from the
+  changelog shipped inside the bundle, so it travels with the app. HTML in a tab
+  rather than a modal: Ark already renders documents well, and a panel you must
+  dismiss before using your browser is a worse greeting than a tab you can close.
+  A fresh install shows nothing — nobody needs release notes for software they
+  just met.
+- Non-http links in the notes keep their label and lose the URL entirely. That
+  page opens by itself, so a `javascript:` or `file://` target has no business
+  surviving even as text someone might copy.
+
+### Fixed
+
+- **Tab reordering broke, and my jelly change did it.** Two `DragGesture`s on one
+  row — one at `minimumDistance: 0` for the press squash, one at 8 for the drag —
+  fight over the same events, and reordering and row selection lost. The real
+  drag is back at 8pt, and the click-anchored squash now comes from a
+  `SpatialTapGesture`, which reports where the click landed without being a drag
+  at all.
+- **The settings window showed seven identical "General" tabs.** `.tabItem` is the
+  pre-macOS-15 spelling and its labels stopped binding on 26; `Tab` gets it right.
+  Also 420pt tall clipped the 1Password pane's own button off the bottom.
+- Pinned rows are centred again, with tile size still taken from the four-across
+  grid — so a short row sits in the middle at full size instead of stretching.
+
+---
+
 ## v0.26.1 — Tidal-wave jelly, Arc-shaped pinned tabs (2026-08-20)
 
 ### Motion
