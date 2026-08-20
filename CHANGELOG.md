@@ -38,6 +38,33 @@ them.
 
 ---
 
+## v0.27.2 — One surface, ripple relocated (2026-08-20)
+
+### Changed
+
+- **The sidebar and the background are one surface.** They were two glass layers
+  meeting, each refracting separately, which is what drew the seam down the edge
+  of the sidebar. Now the window colour, the page tint, and a single glass pass
+  are painted once behind everything, and the sidebar draws nothing of its own.
+  Measured: sidebar interior and all four gutters read the same `#282828`.
+  - The resize divider is invisible until you hover it. A permanent hairline was
+    the other half of the seam — a border between two things meant to read as one.
+- **The command-bar ripple moved to the field row.** Rippling the panel outline
+  was the wrong target twice over: once you type, the panel is ~380pt tall with a
+  suggestion list in it, so a 3pt bow on its edges is nowhere near where you're
+  looking — and `glassEffect(in:)` is a compositor effect that doesn't re-clip
+  smoothly against a shape changing every frame. The wave is now the field row's
+  own fill, in drawn SwiftUI content, with a soft crest highlight so it reads even
+  where the edge displacement is small.
+- **Pinned tiles stretch to fill the sidebar.** One pinned tab gets a wide tile
+  spanning nearly the full width, two get halves, up to four per row. Only the
+  width stretches — the fixed 34pt height is what stops a lone pinned tab
+  becoming one enormous square.
+- **The settings window has an opaque backing.** It inherited the app's vibrancy,
+  and over a bright page the tab bar's labels washed out to ghost text.
+
+---
+
 ## v0.27.1 — Verse removed, the ripple follows the caret (2026-08-20)
 
 ### Removed

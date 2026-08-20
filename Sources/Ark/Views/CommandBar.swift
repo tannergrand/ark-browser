@@ -33,16 +33,17 @@ struct CommandBar: View {
             }
         }
         .frame(width: 620)
-        // The ripple is the bar's own surface, so the glass and the rim both
-        // follow the wave rather than a static outline sitting over a moving one.
-        .glassSurface(.floating, in: rippleShape,
+        // The panel's outline is static again. Rippling it was the wrong target
+        // twice over: once you type, the panel is ~380pt tall with a suggestion
+        // list in it, so a 3pt bow on its edges is nowhere near where you're
+        // looking — and `glassEffect(in:)` is a compositor effect that doesn't
+        // re-clip smoothly against a shape changing every frame. The ripple now
+        // lives on the field row, in drawn SwiftUI content that definitely
+        // animates.
+        .glassSurface(.floating, in: RoundedRectangle(cornerRadius: 14, style: .continuous),
                       enabled: state.glassChrome, intensity: state.glassIntensity)
-        .overlay {
-            rippleShape.stroke(
-                LinearGradient(colors: [.white.opacity(0.34), .white.opacity(0.08)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing),
-                lineWidth: 1)
-        }
+        .glassRim(cornerRadius: 14, enabled: state.glassChrome,
+                  intensity: state.glassIntensity)
         .shadow(color: .black.opacity(0.3), radius: 30, y: 12)
         .onAppear {
             if state.commandBarMode == .editURL {
@@ -70,7 +71,7 @@ struct CommandBar: View {
 
     private var rippleShape: JellyWave {
         JellyWave(travel: wave.travel, origin: wave.origin,
-                  amplitude: wave.amplitude, cornerRadius: 14)
+                  amplitude: wave.amplitude, cornerRadius: 11)
     }
 
     /// Where the caret is, as a fraction of the bar — estimated from the text
@@ -84,6 +85,40 @@ struct CommandBar: View {
     // MARK: - Field
 
     private var field: some View {
+        fieldRow
+            .background {
+                // The row's own fill *is* the wave, so the ripple runs directly
+                // under the text rather than around a panel edge.
+                rippleShape.fill(Color.primary.opacity(0.05))
+            }
+            .overlay {
+                rippleShape.stroke(Color.accentColor.opacity(0.42 * wave.amplitude),
+                                   lineWidth: 1.2)
+            }
+            .overlay { crestHighlight }
+            .padding(6)
+    }
+
+    /// A soft band of light sitting on the crest, so the wave is visible even
+    /// where the edge displacement is small. Masked to the row, and drawn only
+    /// while a wave is alive.
+    @ViewBuilder
+    private var crestHighlight: some View {
+        if wave.amplitude > 0.01 {
+            GeometryReader { geo in
+                let crest = wave.origin + wave.travel * (1.15 - wave.origin)
+                RadialGradient(
+                    colors: [Color.accentColor.opacity(0.30 * wave.amplitude), .clear],
+                    center: .center, startRadius: 0, endRadius: 70)
+                    .frame(width: 140, height: geo.size.height * 2)
+                    .position(x: geo.size.width * crest, y: geo.size.height / 2)
+            }
+            .mask { rippleShape }
+            .allowsHitTesting(false)
+        }
+    }
+
+    private var fieldRow: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 14, weight: .medium))

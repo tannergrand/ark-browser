@@ -15,8 +15,7 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 
 *(Yours. Add freely — nothing here is committed to.)*
 
-- Pinned tab containers should stretch to almost the full width of the sidebar.
-- The settings window header is see-through — make it opaque so it's readable.
+-
 
 ---
 
@@ -39,6 +38,7 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 
 ## Shipped
 
+- `0.27.2` — Pinned tiles stretch to fill the sidebar width (height fixed). Settings window has an opaque backing so the tab bar is readable. Command-bar ripple moved onto the field row.
 - `0.27.1` — Verse card removed. Command-bar ripple now starts at the caret and travels right. Blank-tab sidebar tint blends the whole field instead of one accent.
 - `0.27.0` — Pinned tab URLs are editable: right-click → *Set Pinned URL to This Page*, or *Edit Pinned URL…* for the full value.
 - `0.26.1` — Travelling jelly wave in the command bar; pinned tabs on an Arc/Zen four-across grid; click-anchored row squash.

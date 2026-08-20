@@ -93,30 +93,28 @@ struct SidebarView: View {
     /// centred instead of hugging the left edge.
     private var pinnedIconStrip: some View {
         let tabs = state.pinned.filter { !$0.isGroup }.compactMap { $0.tab }
-        // Arc and Zen both use a fixed four-across grid whose tiles divide the
-        // available width, so the row always reaches both edges and the tiles
-        // grow with the sidebar. 20 is the sidebar's own horizontal padding.
+        // Tiles stretch to fill the sidebar: one pinned tab gets a wide tile
+        // spanning nearly the whole width, two get halves, and so on up to four
+        // per row. Only the *width* stretches — a fixed height is what keeps a
+        // lone pinned tab from becoming one enormous square, which is the
+        // failure mode the earlier fixed-grid version was correcting for.
         let inner = max(60, state.sidebarWidth - 20)
         let spacing: CGFloat = 6
-        let columns = 4
-        let tile = max(24, (inner - spacing * CGFloat(columns - 1)) / CGFloat(columns))
+        let columns = min(max(tabs.count, 1), 4)
+        let width = max(28, (inner - spacing * CGFloat(columns - 1)) / CGFloat(columns))
+        let height: CGFloat = 34
 
         return Group {
             if !tabs.isEmpty {
                 VStack(spacing: spacing) {
                     ForEach(Array(rows(tabs, perRow: columns).enumerated()), id: \.offset) { _, row in
                         HStack(spacing: spacing) {
-                            // Centred, with the tile size still coming from the
-                            // four-across grid — so a short row sits in the
-                            // middle at the same size rather than stretching or
-                            // hugging the leading edge.
-                            Spacer(minLength: 0)
                             ForEach(row) { tab in
-                                PinnedIcon(tab: tab, size: tile,
+                                PinnedIcon(tab: tab, width: width, height: height,
                                            renamingID: $renamingID, draft: $draft)
                             }
-                            Spacer(minLength: 0)
                         }
+                        .frame(maxWidth: .infinity)
                     }
                 }
                 // No container box. Arc and Zen let the tiles sit directly on the
@@ -992,7 +990,8 @@ struct TabIcon: View {
 private struct PinnedIcon: View {
     @Environment(BrowserState.self) private var state
     let tab: BrowserTab
-    var size: CGFloat = 32
+    var width: CGFloat = 32
+    var height: CGFloat = 32
     @Binding var renamingID: UUID?
     @Binding var draft: String
     @State private var hovering = false
@@ -1020,21 +1019,21 @@ private struct PinnedIcon: View {
                 ProgressView().controlSize(.small).scaleEffect(0.5)
                     .tint(state.chromeTint ?? .accentColor)
             } else {
-                TabIcon(tab: tab, size: size * 0.62)
+                TabIcon(tab: tab, size: min(height * 0.62, 22))
                     .opacity(tab.isSnoozed ? 0.45 : 1)
             }
             if tab.isSnoozed {
                 Image(systemName: "moon.zzz.fill")
-                    .font(.system(size: max(6, size * 0.22)))
+                    .font(.system(size: max(6, height * 0.22)))
                     .foregroundStyle(.secondary)
                     .padding(1)
                     .background(.background, in: Circle())
-                    .frame(width: size * 0.8, height: size * 0.8, alignment: .bottomTrailing)
+                    .frame(width: width * 0.9, height: height * 0.8, alignment: .bottomTrailing)
             }
         }
-        .frame(width: size, height: size)
+        .frame(width: width, height: height)
         .background {
-            RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
+            RoundedRectangle(cornerRadius: min(height * 0.3, 10), style: .continuous)
                 .fill(isDisplayed
                       ? Color.accentColor.opacity(isFocused ? 0.28 : 0.16)
                       : (hovering ? Color.primary.opacity(0.10) : Color.primary.opacity(0.05)))

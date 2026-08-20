@@ -23,19 +23,13 @@ struct RootView: View {
         ZStack {
             HStack(spacing: 0) {
                 if state.sidebarPinned {
+                    // No surface of its own. The sidebar, the gutter around the
+                    // page, and the strip above it are one continuous surface
+                    // painted once behind the whole window — two glass layers
+                    // meeting left a visible seam down the edge of the sidebar,
+                    // because each was refracting separately.
                     SidebarView()
                         .frame(width: state.sidebarWidth)
-                        // Order is load-bearing: `.background` inserts behind
-                        // whatever it is attached to, so the tint has to be
-                        // applied *before* the glass to land in front of it.
-                        // Reversed, the glass surface covered the tint entirely
-                        // and the sidebar never coloured at all.
-                        .background(ChromeTint(tint: state.chromeTint,
-                                               strength: state.chromeTintStrength))
-                        .glassSurface(.chrome,
-                                      in: RoundedRectangle(cornerRadius: 0, style: .continuous),
-                                      enabled: state.glassChrome,
-                                      intensity: state.glassIntensity)
                     ResizeHandle(
                         width: Binding(get: { state.sidebarWidth },
                                        set: { state.sidebarWidth = $0 }),
@@ -261,12 +255,15 @@ struct RootView: View {
         // The gutter around the page, and the rim on it, are the same surface as
         // the sidebar — so they take the same colour. Left neutral, the 8pt frame
         // read as a grey border drawn between two tinted things.
+        // The single surface: window colour, the page tint over it, and one glass
+        // pass across the lot. Everything that isn't the web content sits on this.
         .background {
             ZStack {
                 Color(nsColor: .windowBackgroundColor)
-                ChromeTint(tint: state.chromeTint,
-                           strength: state.chromeTintStrength * 0.85)
+                ChromeTint(tint: state.chromeTint, strength: state.chromeTintStrength)
             }
+            .glassSurface(.chrome, in: Rectangle(),
+                          enabled: state.glassChrome, intensity: state.glassIntensity)
             .ignoresSafeArea()
         }
         // Links handed to Ark by other apps (Mail, Slack, Finder) when it is
@@ -313,11 +310,12 @@ struct ResizeHandle: View {
 
     var body: some View {
         Rectangle()
+            // Invisible until hovered. A permanent hairline here is the other
+            // half of the seam: it drew a border between two things that are
+            // meant to read as one surface.
             .fill(hovering || dragging
                   ? AnyShapeStyle(Color.accentColor.opacity(0.55))
-                  : AnyShapeStyle(LinearGradient(colors: [.white.opacity(0.18),
-                                                          .black.opacity(0.10)],
-                                                 startPoint: .top, endPoint: .bottom)))
+                  : AnyShapeStyle(Color.clear))
             .frame(width: (hovering || dragging) ? 3 : 1)
             // Matches Layout.contentInset so the gap to the left of the page is
             // the same as the gap on every other side.

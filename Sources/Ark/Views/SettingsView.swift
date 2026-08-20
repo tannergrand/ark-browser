@@ -9,6 +9,10 @@ struct SettingsView: View {
     /// tabs. `Tab` is the current API and gets it right; the old path stays for
     /// the macOS 14 floor.
     var body: some View {
+        // An opaque backing. The settings window inherits the app's vibrancy, and
+        // over a bright page the tab bar's labels were washed out to the point of
+        // being unreadable — the screenshot that prompted this showed a row of
+        // ghost text.
         Group {
             if #available(macOS 15.0, *) {
                 TabView {
@@ -28,6 +32,7 @@ struct SettingsView: View {
         }
         // 420pt tall clipped the 1Password pane's own button off the bottom.
         .frame(width: 620, height: 580)
+        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
     }
 }
 
