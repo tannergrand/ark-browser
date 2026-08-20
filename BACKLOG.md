@@ -38,6 +38,7 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 
 ## Shipped
 
+- `0.28.0` — ⌘-click multi-select in the sidebar, with bulk group/pin/close and multi-drag.
 - `0.27.2` — Pinned tiles stretch to fill the sidebar width (height fixed). Settings window has an opaque backing so the tab bar is readable. Command-bar ripple moved onto the field row.
 - `0.27.1` — Verse card removed. Command-bar ripple now starts at the caret and travels right. Blank-tab sidebar tint blends the whole field instead of one accent.
 - `0.27.0` — Pinned tab URLs are editable: right-click → *Set Pinned URL to This Page*, or *Edit Pinned URL…* for the full value.

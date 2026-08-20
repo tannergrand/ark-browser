@@ -208,6 +208,9 @@ struct ArkCommands: Commands {
         }
 
         CommandMenu("Tabs") {
+            Button("Deselect All Tabs") { state.clearSelection() }
+                .disabled(state.selectionCount == 0)
+            Divider()
             Button("Pin Tab") {
                 if let tab = state.focusedTab {
                     tab.tier == .today ? state.pin(tab) : state.unpin(tab)

@@ -580,6 +580,7 @@ private struct TabRow: View {
     private var isDisplayed: Bool { state.displayed.contains(tab.id) }
     private var isFocused: Bool { state.focusedTabID == tab.id }
     private var isDragging: Bool { state.drag.draggingTabID == tab.id }
+    private var isMultiSelected: Bool { state.isSelected(tab.id) }
 
     var body: some View {
         HStack(spacing: 7) {
@@ -670,13 +671,22 @@ private struct TabRow: View {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(isDisplayed ? Color.accentColor.opacity(isFocused ? 0.22 : 0.12)
                                   : (hovering ? Color.primary.opacity(0.06) : Color.clear))
+                // A ring rather than a fill, so "selected" and "on screen" stay
+                // legible at the same time — they mean different things.
+                .overlay {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .strokeBorder(Color.accentColor.opacity(isMultiSelected ? 0.85 : 0),
+                                      lineWidth: 1.5)
+                }
                 .overlay { InsertBar(edge: state.drag.insertEdge(for: tab.id)) }
         }
 
         .frame(height: 29)
         .contentShape(Rectangle())
         .jellyRow(pressed: pressing, hovering: hovering,
-                  dragging: isDragging, selected: isDisplayed, anchor: pressAnchor)
+                  dragging: isDragging, selected: isDisplayed || isMultiSelected,
+                  anchor: pressAnchor)
+        .animation(Motion.settle, value: isMultiSelected)
         .onHover { hovering = $0 }
         // Shift-click peeks the tab in an overlay instead of switching to it,
         // matching shift-click on a link.
@@ -685,6 +695,15 @@ private struct TabRow: View {
                 if let url = tab.webView.url ?? URL(string: tab.urlString) {
                     state.peek(url)
                 }
+            }
+        )
+        // ⌘-click multi-selects. Ordered before the plain tap so the modifier
+        // wins; SwiftUI resolves these in declaration order, and the unmodified
+        // gesture would otherwise swallow every click.
+        .highPriorityGesture(
+            TapGesture().modifiers(.command).onEnded {
+                squash()
+                state.toggleSelection(tab.id)
             }
         )
         // SpatialTapGesture rather than onTapGesture: it reports where the click
@@ -698,6 +717,9 @@ private struct TabRow: View {
                     pressAnchor = UnitPoint(
                         x: min(max(value.location.x / max(rowWidth, 1), 0), 1), y: 0.5)
                     squash()
+                    // A plain click is a navigation, and navigating away from a
+                    // multi-selection ends it.
+                    state.clearSelection()
                     state.show(tab)
                 }
         )
@@ -753,6 +775,27 @@ private struct TabContextMenu: View {
                                 "🙏", "❤️", "⭐️", "🔥", "🧪", "📚", "🏠", "💡"]
 
     var body: some View {
+        // Bulk actions first, and only when they'd act on more than this tab.
+        // Anything else would make a two-tab selection look like a no-op.
+        if state.selectionCount > 1 && state.isSelected(tab.id) {
+            let count = state.selectionCount
+            Button("Group \(count) Tabs") {
+                withAnimation(Motion.settle) { _ = state.groupSelected() }
+            }
+            if !state.allGroups.isEmpty {
+                Menu("Move \(count) Tabs to Group") {
+                    ForEach(state.allGroups) { folder in
+                        Button(folder.groupName ?? "Group") { state.moveSelected(into: folder) }
+                    }
+                }
+            }
+            Button("Pin \(count) Tabs") { state.pinSelected() }
+            Button("Close \(count) Tabs", role: .destructive) {
+                withAnimation(Motion.settle) { state.closeSelected() }
+            }
+            Button("Deselect All") { state.clearSelection() }
+            Divider()
+        }
         Button("Rename…") { draft = tab.displayTitle; renamingID = tab.id }
         Menu("Tab Icon") {
             ForEach(Self.icons, id: \.self) { icon in
@@ -1037,11 +1080,17 @@ private struct PinnedIcon: View {
                 .fill(isDisplayed
                       ? Color.accentColor.opacity(isFocused ? 0.28 : 0.16)
                       : (hovering ? Color.primary.opacity(0.10) : Color.primary.opacity(0.05)))
+                .overlay {
+                    RoundedRectangle(cornerRadius: min(height * 0.3, 10), style: .continuous)
+                        .strokeBorder(Color.accentColor
+                            .opacity(state.isSelected(tab.id) ? 0.85 : 0), lineWidth: 1.5)
+                }
                 .overlay { InsertBar(edge: state.drag.insertEdge(for: tab.id)) }
         }
         .contentShape(Rectangle())
         .jellyRow(pressed: pressing, hovering: hovering,
-                  dragging: isDragging, selected: isDisplayed)
+                  dragging: isDragging,
+                  selected: isDisplayed || state.isSelected(tab.id))
         .onHover { hovering = $0 }
         .help(pinnedTooltip)
         .highPriorityGesture(
@@ -1049,12 +1098,16 @@ private struct PinnedIcon: View {
                 if let url = tab.webView.url ?? URL(string: tab.urlString) { state.peek(url) }
             }
         )
+        .highPriorityGesture(
+            TapGesture().modifiers(.command).onEnded { state.toggleSelection(tab.id) }
+        )
         .onTapGesture {
             pressing = true
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(110))
                 pressing = false
             }
+            state.clearSelection()
             state.show(tab)
         }
         .reportsFrame(state.drag, as: .row(tab.id))

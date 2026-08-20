@@ -38,6 +38,32 @@ them.
 
 ---
 
+## v0.28.0 — ⌘-click multi-select (2026-08-20)
+
+### Added
+
+- **⌘-click tabs in the sidebar to select several**, then act on all of them:
+  *Group N Tabs*, *Move N Tabs to Group*, *Pin N Tabs*, *Close N Tabs*. Works on
+  pinned icons too. ⌘⌥A deselects, or click any tab normally.
+- **Dragging one of the selection drags all of it.** The tab under the pointer
+  lands on the target and the rest queue up behind it — taken in sidebar order
+  and each inserted after the last, rather than all beside the same anchor, which
+  would reverse them.
+- Selection is drawn as a **ring**, not a fill, so "selected" and "on screen"
+  stay legible at once — they mean different things, and a five-tab selection
+  must not look like five open panes.
+
+### Notes
+
+- Selection is a separate set from `displayed`. Conflating them would mean
+  selecting five tabs opened five panes.
+- Closing a tab removes it from the selection, and `pruneSelection()` drops dead
+  ids — a closed tab left in the set makes the count lie.
+- ⇧-click stays *peek*, so range-select isn't available. Two different meanings
+  for shift-click in the same list would be worse than not having ranges.
+
+---
+
 ## v0.27.2 — One surface, ripple relocated (2026-08-20)
 
 ### Changed

@@ -619,6 +619,43 @@ enum SelfTest {
         check("signature colours are stable for a seed",
               LiquidBackdrop.signature(seed: 7) == LiquidBackdrop.signature(seed: 7))
 
+        // Multi-select. The pure parts: toggling, pruning, and the fact that a
+        // selection is not the same thing as what's on screen.
+        let picker = BrowserState()
+        let one = picker.newTab(url: URL(string: "https://one.example"), activate: false)
+        let two = picker.newTab(url: URL(string: "https://two.example"), activate: false)
+        picker.toggleSelection(one.id)
+        picker.toggleSelection(two.id)
+        check("cmd-click builds a selection", picker.selectionCount == 2)
+        check("cmd-clicking again deselects",
+              { picker.toggleSelection(two.id); return picker.selectionCount == 1 }())
+        check("selection order follows the sidebar, not the Set",
+              {
+                  picker.toggleSelection(two.id)
+                  return picker.selectedTabsInOrder.map(\.id)
+                      == picker.orderedTabs.filter { picker.isSelected($0.id) }.map(\.id)
+              }())
+        check("closing a tab drops it from the selection",
+              { picker.close(two); return !picker.isSelected(two.id) }())
+        check("pruning removes ids that no longer exist",
+              {
+                  picker.selectedTabIDs.insert(UUID())
+                  picker.pruneSelection()
+                  return picker.selectedTabIDs.allSatisfy { id in
+                      picker.allTabs.contains { $0.id == id }
+                  }
+              }())
+        check("a selection is not the displayed set",
+              !picker.displayed.contains(where: { picker.isSelected($0) })
+              || picker.displayed.count != picker.selectionCount
+              || picker.selectionCount == 0,
+              "selecting five tabs must not open five panes")
+        check("clearing empties it",
+              { picker.clearSelection(); return picker.selectionCount == 0 }())
+        check("grouping needs more than one tab",
+              MainActor.assumeIsolated { picker.groupSelected() } == nil,
+              "a one-tab group is what the single-tab menu item is for")
+
         check("tint scales with intensity",
               GlassRamp.tintOpacity(1.0) > GlassRamp.tintOpacity(0.0),
               String(format: "%.3f vs %.3f", GlassRamp.tintOpacity(1.0), GlassRamp.tintOpacity(0.0)))

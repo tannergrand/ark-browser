@@ -299,6 +299,79 @@ final class BrowserState {
     var organizeError: String?
     /// Which model does the grouping.
     var groupingEngine: GroupingEngine = .appleIntelligence
+    /// ⌘-clicked tabs, for acting on several at once.
+    ///
+    /// Kept separate from `displayed`: those are the tabs on screen in a split,
+    /// this is a set you've marked to operate on. Conflating them would mean
+    /// selecting five tabs opened five panes.
+    var selectedTabIDs: Set<UUID> = []
+
+    var selectionCount: Int { selectedTabIDs.count }
+
+    func isSelected(_ id: UUID) -> Bool { selectedTabIDs.contains(id) }
+
+    /// ⌘-click. The clicked tab joins or leaves the set; nothing is shown or
+    /// hidden, because a multi-select click is not a navigation.
+    func toggleSelection(_ id: UUID) {
+        if selectedTabIDs.contains(id) { selectedTabIDs.remove(id) }
+        else { selectedTabIDs.insert(id) }
+    }
+
+    func clearSelection() {
+        guard !selectedTabIDs.isEmpty else { return }
+        selectedTabIDs = []
+    }
+
+    /// Selected tabs in sidebar order, so bulk actions preserve what you see
+    /// rather than the arbitrary order of a Set.
+    var selectedTabsInOrder: [BrowserTab] {
+        orderedTabs.filter { selectedTabIDs.contains($0.id) }
+    }
+
+    /// Drops ids that no longer exist. A closed tab left in the set would make
+    /// the count lie.
+    func pruneSelection() {
+        let live = Set(allTabs.map(\.id))
+        selectedTabIDs = selectedTabIDs.intersection(live)
+    }
+
+    // MARK: - Bulk actions
+
+    @MainActor
+    func closeSelected() {
+        let doomed = selectedTabsInOrder
+        clearSelection()
+        for tab in doomed { close(tab) }
+    }
+
+    /// One new group holding everything selected, in sidebar order.
+    @MainActor
+    @discardableResult
+    func groupSelected(named name: String = "New Group") -> SidebarItem? {
+        let tabs = selectedTabsInOrder
+        guard tabs.count > 1, let first = tabs.first else { return nil }
+        let group = newGroup(named: name, containing: first)
+        for tab in tabs.dropFirst() { move(tab, into: group) }
+        group.isExpanded = true
+        clearSelection()
+        save()
+        return group
+    }
+
+    @MainActor
+    func pinSelected() {
+        for tab in selectedTabsInOrder where tab.tier == .today { pin(tab) }
+        clearSelection()
+    }
+
+    @MainActor
+    func moveSelected(into group: SidebarItem) {
+        for tab in selectedTabsInOrder { move(tab, into: group) }
+        group.isExpanded = true
+        clearSelection()
+        save()
+    }
+
     /// True while a sidebar tab is being dragged. Pane drop layers are only
     /// live during a drag so they never intercept ordinary clicks.
     /// Sidebar/pane drag tracking. Pointer-based, no drag-and-drop API.
@@ -989,17 +1062,33 @@ final class BrowserState {
 
         guard let id = drag.draggingTabID, let dragged = tab(withID: id) else { return }
 
+        // Dragging a tab that's part of a ⌘-click selection moves the whole
+        // selection. The primary tab lands on the target, then the others queue
+        // up after it — which is why they're taken in sidebar order and inserted
+        // one behind the last, rather than all beside the same anchor.
+        let companions = selectedTabIDs.contains(id)
+            ? selectedTabsInOrder.filter { $0.id != id }
+            : []
+
         switch drag.target {
         case .none:
             break
         case .beside(let targetID, let before):
             guard targetID != id else { break }
             move(dragged, besideTabID: targetID, before: before)
+            var anchor = id
+            for tab in companions {
+                move(tab, besideTabID: anchor, before: false)
+                anchor = tab.id
+            }
+            clearSelection()
         case .intoGroup(let groupID):
             guard let group = pinned.findNode(id: groupID)
                     ?? todayItems.findNode(id: groupID), group.isGroup else { break }
             move(dragged, into: group)
+            for tab in companions { move(tab, into: group) }
             group.isExpanded = true
+            clearSelection()
         case .root(let pinnedSection):
             _ = handleDropOnRoot(idString: id.uuidString,
                                  placement: pinnedSection ? .pinned : .today)
@@ -1176,6 +1265,7 @@ final class BrowserState {
 
     /// Arc's rule: closing a pinned tab resets it instead of removing it.
     func close(_ tab: BrowserTab) {
+        selectedTabIDs.remove(tab.id)
         if tab.tier != .today {
             tab.resetToPinned()
             if displayed.count > 1 { removeFromSplit(tab) }
