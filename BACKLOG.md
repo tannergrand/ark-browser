@@ -28,14 +28,15 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 | 1 | **Speed up command-bar suggestions** | P1 | Your report, via the in-app form. Likely cause: `OnDeviceSuggestions` builds a fresh `LanguageModelSession` per keystroke, and the debounce is 400 ms on top of that. Reusing one warm session and cutting the debounce are the two levers. Local history rows are already instant. |
 | 2 | **Slimmer top strip with the sidebar hidden** | P2 | Your screenshot: the traffic-light strip is 26pt plus an 8pt gutter above the page, so ~34pt of empty chrome. The floor is whatever clears the traffic lights (~22pt) — worth checking whether the gutter can be shared rather than stacked. |
 | 3 | **Close animations, single and bulk** | P2 | Rows vanish instantly today. Bulk close especially — closing four tabs should read as four rows leaving, staggered, not the list jumping. `Motion.appear` already handles insertion; removal is a plain fade. |
-| 4 | Cross-origin iframe autofill | P2 | Okta/Auth0/Stripe login widgets get no bridge — `forMainFrameOnly: true`. Turning it off runs the password script in every frame on every page, which is a real surface-area increase. Your call, not mine. |
-| 5 | Rolling backups of `state.json` | P1 | One file, no history. You already lost a set of Today tabs to a state bug once. |
-| 6 | Private window | P2 | Every tab shares one cookie store today. |
-| 7 | TOTP autofill | P3 | Already parsed out of `op`; nothing fills it. |
-| 8 | Vault scoping for 1Password | P2 | Currently whole-account read access. |
-| 9 | Boosts — per-site CSS/JS | P3 | Arc parity. |
-| 10 | Reader mode | P3 | |
-| 11 | Claude driving the browser | P2 | Deferred to "v2" early on. Prompt injection is the actual design problem, not the tool surface. |
+| 4 | **Loading shown on the container, not as a bar** | P2 | Today it's a 1.5pt `ProgressView` hairline under the URL pill. Instead animate the pill itself — a travelling sheen or a filling border tinted from the page — so loading reads as the chrome breathing rather than a separate widget. `JellyWave` already does a travelling packet on a shape; same idea, driven by `tab.progress` instead of keystrokes. |
+| 5 | Cross-origin iframe autofill | P2 | Okta/Auth0/Stripe login widgets get no bridge — `forMainFrameOnly: true`. Turning it off runs the password script in every frame on every page, which is a real surface-area increase. Your call, not mine. |
+| 6 | Rolling backups of `state.json` | P1 | One file, no history. You already lost a set of Today tabs to a state bug once. |
+| 7 | Private window | P2 | Every tab shares one cookie store today. |
+| 8 | TOTP autofill | P3 | Already parsed out of `op`; nothing fills it. |
+| 9 | Vault scoping for 1Password | P2 | Currently whole-account read access. |
+| 10 | Boosts — per-site CSS/JS | P3 | Arc parity. |
+| 11 | Reader mode | P3 | |
+| 12 | Claude driving the browser | P2 | Deferred to "v2" early on. Prompt injection is the actual design problem, not the tool surface. |
 
 ---
 
