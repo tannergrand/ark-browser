@@ -1,0 +1,5 @@
+# Build products — regenerate with ./build.sh
+.build/
+Ark.app/
+*.o
+*.swiftmodule
