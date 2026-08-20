@@ -470,6 +470,39 @@ final class BrowserState {
         resolvePendingNewTab(committed: committed)
     }
 
+    /// Repoints a pinned tab's home. `nil` input clears it back to whatever the
+    /// tab is showing now.
+    ///
+    /// The pinned URL is what ⌘W and Reset snap back to, so a tab pinned months
+    /// ago at a URL that has since moved was stuck returning to the wrong page
+    /// with no way to correct it short of unpinning and repinning.
+    @MainActor
+    func setPinnedURL(_ raw: String?, for tab: BrowserTab) {
+        guard let resolved = Self.resolvePinnedURL(raw, fallback: tab.urlString) else { return }
+        tab.pinnedURL = resolved
+        save()
+    }
+
+    /// Accepts what someone would actually type — a bare host, a full URL, or
+    /// nothing at all, which means "use the page I'm on".
+    ///
+    /// Returns nil only when there is genuinely nothing to point at, so a typo
+    /// can't silently blank a pinned tab's home.
+    static func resolvePinnedURL(_ raw: String?, fallback: String) -> String? {
+        let text = (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty {
+            let current = fallback.trimmingCharacters(in: .whitespaces)
+            return current.isEmpty ? nil : current
+        }
+        let url = BrowserTab.resolve(text)
+        // `resolve` falls back to a search URL for anything unparseable, and a
+        // search results page is a poor thing to pin someone to by accident —
+        // but it is still a valid destination, so it is allowed rather than
+        // rejected. Only an empty result is refused.
+        let absolute = url.absoluteString
+        return absolute.isEmpty ? nil : absolute
+    }
+
     /// Where a command-bar navigation should land: the pending blank tab if one
     /// is waiting, otherwise a fresh tab.
     @MainActor

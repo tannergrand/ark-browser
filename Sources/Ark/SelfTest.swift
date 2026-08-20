@@ -583,6 +583,24 @@ enum SelfTest {
               }(),
               "the notes open automatically, so they must not carry a live scheme")
 
+        // Pinned URL editing: the field takes what a person would type, and an
+        // empty box means "use the page I'm on" rather than "clear it".
+        check("a bare host becomes a URL",
+              BrowserState.resolvePinnedURL("github.com", fallback: "")?
+                  .hasPrefix("https://github.com") == true)
+        check("a full URL passes through",
+              BrowserState.resolvePinnedURL("https://a.example/x", fallback: "")
+              == "https://a.example/x")
+        check("an empty field falls back to the current page",
+              BrowserState.resolvePinnedURL("  ", fallback: "https://now.example")
+              == "https://now.example")
+        check("an empty field with nothing loaded is refused",
+              BrowserState.resolvePinnedURL("", fallback: "") == nil,
+              "a typo must not silently blank a pinned tab's home")
+        check("whitespace around a URL is tolerated",
+              BrowserState.resolvePinnedURL("  https://a.example  ", fallback: "")
+              == "https://a.example")
+
         check("newer patch version wins", Updater.isNewer("0.26.1", than: "0.26.0"))
         check("newer minor version wins", Updater.isNewer("0.27", than: "0.26.9"))
         check("same version is not newer", !Updater.isNewer("0.26.0", than: "0.26.0"))

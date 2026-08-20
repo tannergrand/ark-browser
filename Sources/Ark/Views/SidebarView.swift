@@ -6,6 +6,7 @@ struct SidebarView: View {
     @Environment(BrowserState.self) private var state
     @State private var renamingID: UUID?
     @State private var draft = ""
+    @State private var editingPinnedURL: UUID?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -421,7 +422,8 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func tabMenu(_ tab: BrowserTab) -> some View {
-        TabContextMenu(tab: tab, renamingID: $renamingID, draft: $draft)
+        TabContextMenu(tab: tab, renamingID: $renamingID, draft: $draft,
+                       editingPinnedURL: $editingPinnedURL)
     }
 }
 
@@ -562,6 +564,7 @@ private struct TabRow: View {
     @Binding var draft: String
     @State private var hovering = false
     @State private var dropTargeted = false
+    @State private var editingPinnedURL: UUID?
     @State private var pressing = false
     @State private var pressAnchor: UnitPoint = .center
     @State private var rowWidth: CGFloat = 1
@@ -726,7 +729,14 @@ private struct TabRow: View {
         .opacity(isDragging ? 0.4 : 1)
 
         .contextMenu {
-            TabContextMenu(tab: tab, renamingID: $renamingID, draft: $draft)
+            TabContextMenu(tab: tab, renamingID: $renamingID, draft: $draft,
+                           editingPinnedURL: $editingPinnedURL)
+        }
+        .sheet(isPresented: Binding(
+            get: { editingPinnedURL == tab.id },
+            set: { if !$0 { editingPinnedURL = nil } }
+        )) {
+            PinnedURLEditor(tab: tab) { editingPinnedURL = nil }
         }
     }
 }
@@ -736,6 +746,7 @@ private struct TabContextMenu: View {
     let tab: BrowserTab
     @Binding var renamingID: UUID?
     @Binding var draft: String
+    @Binding var editingPinnedURL: UUID?
 
     /// A short, deliberately opinionated set. A full emoji picker in a context
     /// menu is worse than a dozen good defaults plus the system picker via
@@ -776,6 +787,14 @@ private struct TabContextMenu: View {
         } else {
             Button("Unpin Tab") { state.unpin(tab) }
             Button("Reset to Pinned Page") { tab.resetToPinned() }
+            Divider()
+            // The common case first: you navigated somewhere better and want the
+            // tab to come back *here* from now on.
+            Button("Set Pinned URL to This Page") {
+                state.setPinnedURL(nil, for: tab)
+            }
+            .disabled(tab.urlString.isEmpty)
+            Button("Edit Pinned URL…") { editingPinnedURL = tab.id }
         }
 
         if state.groupContaining(tab.id) != nil {
@@ -978,10 +997,22 @@ private struct PinnedIcon: View {
     @Binding var draft: String
     @State private var hovering = false
     @State private var pressing = false
+    @State private var editingPinnedURL: UUID?
 
     private var isDisplayed: Bool { state.displayed.contains(tab.id) }
     private var isFocused: Bool { state.focusedTabID == tab.id }
     private var isDragging: Bool { state.drag.draggingTabID == tab.id }
+
+    /// Names the pinned destination, which is invisible otherwise — and is the
+    /// thing ⌘W will take you back to.
+    private var pinnedTooltip: String {
+        var lines = [tab.displayTitle]
+        if tab.isSnoozed { lines.append("Snoozed to save memory — click to reload") }
+        if let pinned = tab.pinnedURL, pinned != tab.urlString {
+            lines.append("⌘W returns to \(pinned)")
+        }
+        return lines.joined(separator: "\n")
+    }
 
     var body: some View {
         ZStack {
@@ -1013,9 +1044,7 @@ private struct PinnedIcon: View {
         .jellyRow(pressed: pressing, hovering: hovering,
                   dragging: isDragging, selected: isDisplayed)
         .onHover { hovering = $0 }
-        .help(tab.isSnoozed
-              ? "\(tab.displayTitle) — snoozed to save memory"
-              : tab.displayTitle)
+        .help(pinnedTooltip)
         .highPriorityGesture(
             TapGesture().modifiers(.shift).onEnded {
                 if let url = tab.webView.url ?? URL(string: tab.urlString) { state.peek(url) }
@@ -1044,7 +1073,69 @@ private struct PinnedIcon: View {
         )
         .opacity(isDragging ? 0.4 : 1)
         .contextMenu {
-            TabContextMenu(tab: tab, renamingID: $renamingID, draft: $draft)
+            TabContextMenu(tab: tab, renamingID: $renamingID, draft: $draft,
+                           editingPinnedURL: $editingPinnedURL)
         }
+        .sheet(isPresented: Binding(
+            get: { editingPinnedURL == tab.id },
+            set: { if !$0 { editingPinnedURL = nil } }
+        )) {
+            PinnedURLEditor(tab: tab) { editingPinnedURL = nil }
+        }
+    }
+}
+
+
+/// Sheet for repointing a pinned tab. A sheet rather than an inline field: the
+/// pinned URL is invisible normally, so it needs showing before it can be edited
+/// — otherwise you're typing over something you can't see.
+private struct PinnedURLEditor: View {
+    @Environment(BrowserState.self) private var state
+    let tab: BrowserTab
+    let done: () -> Void
+    @State private var text: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Pinned URL")
+                .font(.system(size: 15, weight: .semibold))
+            Text("Where “\(tab.displayTitle)” goes when you press ⌘W or Reset.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            TextField("https://example.com", text: $text)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 13))
+                .onSubmit(commit)
+
+            if let current = tab.pinnedURL, current != text {
+                Text("Currently: \(current)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(2)
+            }
+
+            HStack {
+                Button("Use Current Page") {
+                    text = tab.urlString
+                }
+                .disabled(tab.urlString.isEmpty)
+                Spacer()
+                Button("Cancel", action: done)
+                    .keyboardShortcut(.cancelAction)
+                Button("Save", action: commit)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(BrowserState.resolvePinnedURL(text, fallback: tab.urlString) == nil)
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
+        .onAppear { text = tab.pinnedURL ?? tab.urlString }
+    }
+
+    private func commit() {
+        state.setPinnedURL(text, for: tab)
+        done()
     }
 }

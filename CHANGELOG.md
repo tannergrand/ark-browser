@@ -38,6 +38,24 @@ them.
 
 ---
 
+## v0.27.0 — Pinned URLs are editable (2026-08-20)
+
+### Added
+
+- **Change a pinned tab's URL.** Right-click a pinned tab: *Set Pinned URL to
+  This Page* for the common case, or *Edit Pinned URL…* for a sheet with the
+  current value shown. Backlog Queue #1.
+  - A sheet rather than an inline field, because the pinned URL is invisible
+    normally — editing something you can't see is how you overwrite it by
+    accident.
+  - An empty box means "use the page I'm on", not "clear it". A bare host is
+    resolved (`github.com` → `https://github.com`). Only a genuinely empty result
+    is refused, so a typo can't silently blank a pinned tab's home.
+  - The tooltip now names the destination ⌘W will return to, when it differs from
+    what the tab is showing.
+
+---
+
 ## v0.26.2 — Backlog, what's-new page, settings fixed (2026-08-20)
 
 ### Added
