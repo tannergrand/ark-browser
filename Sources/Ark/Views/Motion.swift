@@ -145,6 +145,10 @@ struct JellyRow: ViewModifier {
     var hovering: Bool = false
     var dragging: Bool = false
     var selected: Bool = false
+    /// Where the press landed. The squash pivots here, so a click on the left of
+    /// a row compresses toward the left — the row gives way under your finger
+    /// rather than shrinking uniformly toward its middle.
+    var anchor: UnitPoint = .center
 
     private var scaleX: CGFloat {
         if dragging { return 1.03 }
@@ -162,7 +166,7 @@ struct JellyRow: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .scaleEffect(x: scaleX, y: scaleY)
+            .scaleEffect(x: scaleX, y: scaleY, anchor: anchor)
             .shadow(color: .black.opacity(dragging ? 0.28 : 0),
                     radius: dragging ? 8 : 0, y: dragging ? 3 : 0)
             .animation(Motion.rowSquish, value: pressed)
@@ -185,9 +189,10 @@ extension View {
 
     /// Sidebar rows: press, hover, drag, and selection in one modifier.
     func jellyRow(pressed: Bool = false, hovering: Bool = false,
-                  dragging: Bool = false, selected: Bool = false) -> some View {
+                  dragging: Bool = false, selected: Bool = false,
+                  anchor: UnitPoint = .center) -> some View {
         modifier(JellyRow(pressed: pressed, hovering: hovering,
-                          dragging: dragging, selected: selected))
+                          dragging: dragging, selected: selected, anchor: anchor))
     }
 
     /// Entrance for overlays and panels.

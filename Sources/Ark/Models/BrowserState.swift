@@ -420,7 +420,19 @@ final class BrowserState {
     }
 
     /// The blank tab awaiting a destination, if any.
-    @ObservationIgnored var pendingNewTab: PendingNewTab?
+    var pendingNewTab: PendingNewTab?
+
+    /// Today's rows, minus a blank tab that is still waiting for a destination.
+    ///
+    /// The tab has to exist — it's what the command bar sits on top of, and
+    /// having a real blank pane there is what stopped the previous page from
+    /// setting the cursor. But listing it in the sidebar before it goes anywhere
+    /// shows a "New Tab" row for something that may never become a tab.
+    var visibleTodayItems: [SidebarItem] {
+        guard let id = pendingNewTab?.tabID,
+              let tab = tab(withID: id), tab.urlString.isEmpty else { return todayItems }
+        return todayItems.filter { $0.id != id }
+    }
 
     /// Called when the command bar closes. Keeps the tab if it went somewhere,
     /// otherwise undoes the whole thing.

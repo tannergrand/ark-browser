@@ -8,10 +8,9 @@ struct CommandBar: View {
     @State private var selection = 0
     @State private var aiRows: [BrowserState.Suggestion] = []
     @State private var aiTask: Task<Void, Never>?
-    /// Bumped on every keystroke. The jelly pulse is keyed on this rather than on
-    /// the text itself, so repeating a character still animates.
-    @State private var keystroke = 0
-    @State private var squashing = false
+    /// Drives the travelling ripple. Keyed on keystrokes, not on the text, so
+    /// repeating a character still sends a wave.
+    @State private var wave = JellyWaveDriver()
     @FocusState private var focused: Bool
 
     /// Local history/bookmark/open-tab matches are capped at three.
@@ -34,14 +33,16 @@ struct CommandBar: View {
             }
         }
         .frame(width: 620)
-        // A short squash on each keystroke. Anisotropic and tiny — 1.5% is
-        // enough to feel alive at typing speed, and anything larger turns into
-        // a wobble that fights the text you're reading.
-        .scaleEffect(x: squashing ? 1.012 : 1, y: squashing ? 0.978 : 1)
-        .animation(Motion.rowSquish, value: squashing)
-        .glassSurface(.floating, in: RoundedRectangle(cornerRadius: 14, style: .continuous),
+        // The ripple is the bar's own surface, so the glass and the rim both
+        // follow the wave rather than a static outline sitting over a moving one.
+        .glassSurface(.floating, in: rippleShape,
                       enabled: state.glassChrome, intensity: state.glassIntensity)
-        .glassRim(cornerRadius: 14, enabled: state.glassChrome, intensity: state.glassIntensity)
+        .overlay {
+            rippleShape.stroke(
+                LinearGradient(colors: [.white.opacity(0.34), .white.opacity(0.08)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing),
+                lineWidth: 1)
+        }
         .shadow(color: .black.opacity(0.3), radius: 30, y: 12)
         .onAppear {
             if state.commandBarMode == .editURL {
@@ -62,24 +63,13 @@ struct CommandBar: View {
         .onChange(of: text) { _, new in
             selection = 0
             scheduleAISuggestions(for: new)
-            pulse()
+            wave.strike(reduced: Motion.reduced)
         }
         .onDisappear { aiTask?.cancel() }
     }
 
-    /// Squash, then release. The release is deliberately not another spring:
-    /// two springs racing at typing speed reads as jitter.
-    private func pulse() {
-        keystroke += 1
-        let stamp = keystroke
-        squashing = true
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(70))
-            // Only the newest keystroke releases the squash, so holding a key
-            // stays compressed instead of flickering.
-            guard stamp == keystroke else { return }
-            squashing = false
-        }
+    private var rippleShape: JellyWave {
+        JellyWave(phase: wave.phase, amplitude: wave.amplitude, cornerRadius: 14)
     }
 
     // MARK: - Field

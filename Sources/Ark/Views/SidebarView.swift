@@ -92,42 +92,37 @@ struct SidebarView: View {
     /// centred instead of hugging the left edge.
     private var pinnedIconStrip: some View {
         let tabs = state.pinned.filter { !$0.isGroup }.compactMap { $0.tab }
-        // 20 for the sidebar's own horizontal padding, 10 for the container's.
-        let inner = max(60, state.sidebarWidth - 30)
-        let spacing: CGFloat = 4
-        // Columns come from the sidebar width alone, never from the tab count.
-        // Deriving them from the count made a single pinned tab one enormous
-        // tile filling the sidebar; Arc and Zen keep the squares a constant size
-        // and just leave the rest of the row empty.
-        let columns = max(3, min(5, Int((inner + spacing) / 40)))
-        let tile = min(38, max(26, (inner - spacing * CGFloat(columns - 1)) / CGFloat(columns)))
+        // Arc and Zen both use a fixed four-across grid whose tiles divide the
+        // available width, so the row always reaches both edges and the tiles
+        // grow with the sidebar. 20 is the sidebar's own horizontal padding.
+        let inner = max(60, state.sidebarWidth - 20)
+        let spacing: CGFloat = 6
+        let columns = 4
+        let tile = max(24, (inner - spacing * CGFloat(columns - 1)) / CGFloat(columns))
 
         return Group {
             if !tabs.isEmpty {
                 VStack(spacing: spacing) {
                     ForEach(Array(rows(tabs, perRow: columns).enumerated()), id: \.offset) { _, row in
                         HStack(spacing: spacing) {
-                            // Spacers rather than a grid: a LazyVGrid pins a
-                            // short final row to the leading edge, which looks
-                            // like a mistake when there's only one pinned tab.
-                            Spacer(minLength: 0)
                             ForEach(row) { tab in
                                 PinnedIcon(tab: tab, size: tile,
                                            renamingID: $renamingID, draft: $draft)
                             }
-                            Spacer(minLength: 0)
+                            // Fills the gap in a short final row so the tiles
+                            // stay on the grid instead of spreading out.
+                            if row.count < columns {
+                                ForEach(0..<(columns - row.count), id: \.self) { _ in
+                                    Color.clear.frame(width: tile, height: tile)
+                                }
+                            }
                         }
                     }
                 }
-                .padding(5)
-                .frame(maxWidth: .infinity)
-                .background {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.primary.opacity(0.05))
-                }
-                .glassRim(cornerRadius: 10, enabled: state.glassChrome,
-                          intensity: state.glassIntensity * 0.6, tint: state.chromeTint)
-                .padding(.top, 4)
+                // No container box. Arc and Zen let the tiles sit directly on the
+                // sidebar; a bordered panel around them reads as a widget.
+                .padding(.top, 6)
+                .padding(.bottom, 2)
             }
         }
     }
@@ -311,7 +306,7 @@ struct SidebarView: View {
 
             // A tree, so groups can live in Today without being pinned.
             // The id list drives the reorder animation.
-            ForEach(state.todayItems) { item in
+            ForEach(state.visibleTodayItems) { item in
                 NodeRow(item: item, depth: 0, renamingID: $renamingID, draft: $draft)
                     .transition(Motion.appear)
             }
@@ -569,6 +564,8 @@ private struct TabRow: View {
     @State private var hovering = false
     @State private var dropTargeted = false
     @State private var pressing = false
+    @State private var pressAnchor: UnitPoint = .center
+    @State private var rowWidth: CGFloat = 1
 
     private var isDisplayed: Bool { state.displayed.contains(tab.id) }
     private var isFocused: Bool { state.focusedTabID == tab.id }
@@ -669,7 +666,25 @@ private struct TabRow: View {
         .frame(height: 29)
         .contentShape(Rectangle())
         .jellyRow(pressed: pressing, hovering: hovering,
-                  dragging: isDragging, selected: isDisplayed)
+                  dragging: isDragging, selected: isDisplayed, anchor: pressAnchor)
+        // Local-space companion to the global drag gesture below, purely to
+        // learn *where* on the row the press landed.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                .onChanged { value in
+                    pressAnchor = UnitPoint(
+                        x: min(max(value.startLocation.x / max(rowWidth, 1), 0), 1),
+                        y: 0.5)
+                }
+        )
+        .background {
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { rowWidth = geo.size.width }
+                    .onChange(of: geo.size.width) { _, new in rowWidth = new }
+            }
+            .allowsHitTesting(false)
+        }
         .onHover { hovering = $0 }
         // Shift-click peeks the tab in an overlay instead of switching to it,
         // matching shift-click on a link.

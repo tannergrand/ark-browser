@@ -38,6 +38,40 @@ them.
 
 ---
 
+## v0.26.1 — Tidal-wave jelly, Arc-shaped pinned tabs (2026-08-20)
+
+### Motion
+
+- **The command bar ripples as you type.** A travelling wave, not a squash:
+  `JellyWave` is a `Shape`, because a transform can't do this — `scaleEffect` and
+  `geometryEffect` are affine, so they can squash the whole bar but cannot bend
+  one part of an edge while leaving the rest alone. The path is rebuilt each
+  frame, the crest crosses once per keystroke, and the ripple decays if you stop.
+  The glass surface and the rim both follow the wave, so there is no static
+  outline sitting over a moving one.
+  - The text field is deliberately **not** deformed. It's a hosted `NSView`, and
+    distorting a live cursor and glyphs mid-edit reads as broken, not soft.
+  - Idle, the shape is a plain rounded rect — the per-frame cost only exists
+    during the ~0.5s a wave is alive, and nothing animates under Reduce Motion.
+- **Sidebar rows squash from where you click.** A local-space gesture reports the
+  press position and the scale pivots there, so a row gives way under the pointer
+  instead of shrinking toward its middle.
+
+### Changed
+
+- **Pinned tabs match Arc and Zen properly**: a fixed four-across grid whose
+  tiles divide the available width, so the row reaches both edges and tiles grow
+  with the sidebar. The container box is gone — Arc and Zen let the tiles sit
+  directly on the sidebar, and a bordered panel read as a widget.
+- **The blank tab stays out of the sidebar until it goes somewhere.** The tab has
+  to exist (it's what the command bar sits on, and what stopped the old page
+  setting the cursor), but listing "New Tab" for something that may never become
+  a tab was noise.
+- The chatbot toggle is gone from the top-right strip entirely. A lone floating
+  icon over the page looked like a stray control; ⌘⇧A does the job.
+
+---
+
 ## v0.26.0 — Published (2026-08-20)
 
 Live at **github.com/tannergrand/ark-browser**, release `v0.26.0`.

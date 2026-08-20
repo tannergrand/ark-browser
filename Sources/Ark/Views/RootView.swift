@@ -54,31 +54,13 @@ struct RootView: View {
                         // traffic lights float on the same colour as every other
                         // edge. Given a glass fill and a hairline, it read as a
                         // stray toolbar bolted above the page.
+                        // Nothing but space for the traffic lights. The chatbot
+                        // toggle used to live here so hiding the sidebar didn't
+                        // hide the feature, but a lone floating icon over the
+                        // page looked like a stray control — ⌘⇧A does the job.
                         WindowChromeArea()
                             .frame(height: 26)
                             .frame(maxWidth: .infinity)
-                            // Same chatbot toggle as the sidebar's title strip,
-                            // so hiding the sidebar doesn't hide the feature —
-                            // but only while the sidebar isn't on screen. With
-                            // auto-hide revealed, both were visible at once.
-                            .overlay(alignment: .trailing) {
-                                if !state.sidebarFloating {
-                                    Button { state.showAISidebar.toggle() } label: {
-                                        Image(systemName: "sparkle")
-                                            .font(.system(size: 11, weight: .medium))
-                                            .frame(width: 22, height: 22)
-                                            .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(JellyPress(scale: 0.9))
-                                    .foregroundStyle(state.showAISidebar
-                                                     ? AnyShapeStyle(Color.accentColor)
-                                                     : AnyShapeStyle(.secondary))
-                                    .help("Ask this page (⌘⇧A)")
-                                    .padding(.trailing, 10)
-                                    .transition(.opacity)
-                                }
-                            }
-                            .animation(Motion.settle, value: state.sidebarFloating)
                     }
                     SplitContainer()
                 }
