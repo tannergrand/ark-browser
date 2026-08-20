@@ -31,12 +31,11 @@ struct SidebarView: View {
             // Leaves room for the traffic lights, which float over the sidebar,
             // and doubles as the title-bar substitute: drag to move the window,
             // double-click to zoom.
-            // Traffic lights float over the left of this strip; the chatbot
-            // toggle takes the right, so it reads as a window-level control
-            // rather than a tab-list entry.
+            // Just space for the traffic lights now — the chatbot toggle moved
+            // down into the nav row, next to the shield, where the other
+            // page-level controls live.
             WindowChromeArea()
                 .frame(height: 26)
-                .overlay(alignment: .trailing) { askPageButton }
 
             HStack(spacing: 2) {
                 navButton("chevron.left", enabled: state.focusedTab?.canGoBack ?? false,
@@ -56,6 +55,7 @@ struct SidebarView: View {
                     else { state.focusedTab?.reload() }
                 }
                 Spacer()
+                askPageButton
                 shieldButton
                 navButton(state.focusedTabIsBookmarked ? "bookmark.fill" : "bookmark",
                           enabled: state.focusedTab != nil,
@@ -228,12 +228,12 @@ struct SidebarView: View {
                 .font(.system(size: 11, weight: .medium))
                 .frame(width: 20, height: 20)
                 .background {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .fill(state.showAISidebar ? Color.accentColor.opacity(0.20) : .clear)
                 }
                 .contentShape(Rectangle())
         }
-        .buttonStyle(JellyPress(scale: 0.9))
+        .buttonStyle(JellyPress(scale: 0.88))
         .foregroundStyle(state.showAISidebar
                          ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
         .help("Ask this page (⌘⇧A)")

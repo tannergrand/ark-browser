@@ -147,11 +147,21 @@ struct ArkCommands: Commands {
     let state: BrowserState
 
     var body: some Commands {
-        CommandGroup(replacing: .appInfo) {
-            Button("Check for Updates…") {
-                Task { await state.updater.check(userInitiated: true) }
+        // Grouped because a Commands builder takes at most ten children, and a
+        // eleventh reports as an "extra argument" error on an unrelated group.
+        Group {
+            CommandGroup(replacing: .appInfo) {
+                Button("Check for Updates…") {
+                    Task { await state.updater.check(userInitiated: true) }
+                }
+            }
+            CommandGroup(replacing: .help) {
+                Button("Request a Feature…") { state.showFeatureRequest = true }
+                    .keyboardShortcut("f", modifiers: [.command, .shift, .option])
             }
         }
+
+
 
         CommandGroup(replacing: .newItem) {
             Button("New Tab") { state.beginNewTab() }

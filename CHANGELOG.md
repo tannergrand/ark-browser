@@ -38,6 +38,34 @@ them.
 
 ---
 
+## v0.28.1 — Feature requests from inside Ark (2026-08-20)
+
+### Added
+
+- **Request a Feature…** in the Help menu (⌘⌥⇧F). Saves to
+  `Application Support/Ark/requests.jsonl` immediately — local, offline, can't be
+  lost to a failed network call — then *optionally* opens a pre-filled GitHub
+  issue or copies the text.
+  - It deliberately does **not** post the issue itself. That needs a token, and a
+    token shipped inside a public app is a leaked credential with write access to
+    the repo. A pre-filled URL costs one click and asks the person to
+    authenticate as themselves, which is the right trade.
+  - Attaches the app version and macOS version, and says so in the sheet.
+    Nothing else — no page, no URL, no history.
+  - JSONL rather than a JSON array: a crash mid-write costs one line instead of
+    the file.
+- **`tools/inbox-sync.sh`** pulls both sources — the local store and open GitHub
+  issues labelled `feature-request` — into `BACKLOG.md`'s Inbox. Idempotent via a
+  recorded id list, and it never touches the Queue or Shipped sections. Verified
+  end to end: a request written by hand appeared in the Inbox on the next run.
+
+### Changed
+
+- The chatbot toggle sits in the nav row next to the shield, with the other
+  page-level controls, instead of alone in the title-bar strip.
+
+---
+
 ## v0.28.0 — ⌘-click multi-select (2026-08-20)
 
 ### Added

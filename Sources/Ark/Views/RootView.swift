@@ -276,6 +276,12 @@ struct RootView: View {
                 OrganizeTabsSheet(proposal: proposal).environment(state)
             }
         }
+        .sheet(isPresented: Binding(
+            get: { state.showFeatureRequest },
+            set: { state.showFeatureRequest = $0 }
+        )) {
+            FeatureRequestSheet { state.showFeatureRequest = false }
+        }
         .alert("Couldn't organize tabs",
                isPresented: Binding(
                 get: { state.organizeError != nil },

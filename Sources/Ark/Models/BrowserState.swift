@@ -293,6 +293,8 @@ final class BrowserState {
     let passwords = PasswordManager()
     let downloads = DownloadManager()
     var showDownloads: Bool = false
+    /// The feature-request sheet.
+    var showFeatureRequest: Bool = false
     /// AI tab grouping: a pending proposal awaiting approval.
     var organizeProposal: TabOrganizer.Proposal?
     var organizing: Bool = false

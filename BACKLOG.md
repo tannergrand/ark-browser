@@ -25,19 +25,21 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 
 | # | Item | Priority | Notes |
 |---|------|----------|-------|
-| 1 | Cross-origin iframe autofill | P2 | Okta/Auth0/Stripe login widgets get no bridge — `forMainFrameOnly: true`. Turning it off runs the password script in every frame on every page, which is a real surface-area increase. Your call, not mine. |
-| 2 | Rolling backups of `state.json` | P1 | One file, no history. You already lost a set of Today tabs to a state bug once. |
-| 3 | Private window | P2 | Every tab shares one cookie store today. |
-| 4 | TOTP autofill | P3 | Already parsed out of `op`; nothing fills it. |
-| 5 | Vault scoping for 1Password | P2 | Currently whole-account read access. |
-| 6 | Boosts — per-site CSS/JS | P3 | Arc parity. |
-| 7 | Reader mode | P3 | |
-| 8 | Claude driving the browser | P2 | Deferred to "v2" early on. Prompt injection is the actual design problem, not the tool surface. |
+| 1 | **Speed up command-bar suggestions** | P1 | Your report, via the in-app form. Likely cause: `OnDeviceSuggestions` builds a fresh `LanguageModelSession` per keystroke, and the debounce is 400 ms on top of that. Reusing one warm session and cutting the debounce are the two levers. Local history rows are already instant. |
+| 2 | Cross-origin iframe autofill | P2 | Okta/Auth0/Stripe login widgets get no bridge — `forMainFrameOnly: true`. Turning it off runs the password script in every frame on every page, which is a real surface-area increase. Your call, not mine. |
+| 3 | Rolling backups of `state.json` | P1 | One file, no history. You already lost a set of Today tabs to a state bug once. |
+| 4 | Private window | P2 | Every tab shares one cookie store today. |
+| 5 | TOTP autofill | P3 | Already parsed out of `op`; nothing fills it. |
+| 6 | Vault scoping for 1Password | P2 | Currently whole-account read access. |
+| 7 | Boosts — per-site CSS/JS | P3 | Arc parity. |
+| 8 | Reader mode | P3 | |
+| 9 | Claude driving the browser | P2 | Deferred to "v2" early on. Prompt injection is the actual design problem, not the tool surface. |
 
 ---
 
 ## Shipped
 
+- `0.28.1` — In-app feature requests (Help ▸ Request a Feature…), synced into this Inbox by `tools/inbox-sync.sh`. Chatbot toggle moved beside the shield.
 - `0.28.0` — ⌘-click multi-select in the sidebar, with bulk group/pin/close and multi-drag.
 - `0.27.2` — Pinned tiles stretch to fill the sidebar width (height fixed). Settings window has an opaque backing so the tab bar is readable. Command-bar ripple moved onto the field row.
 - `0.27.1` — Verse card removed. Command-bar ripple now starts at the caret and travels right. Blank-tab sidebar tint blends the whole field instead of one accent.

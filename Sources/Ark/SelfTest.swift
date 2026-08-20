@@ -656,6 +656,54 @@ enum SelfTest {
               MainActor.assumeIsolated { picker.groupSelected() } == nil,
               "a one-tab group is what the single-tab menu item is for")
 
+        // Feature requests: the local store is the thing that must not lose
+        // anything, so it gets the coverage.
+        let requestFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ark-requests-\(UUID().uuidString).jsonl")
+        let first = FeatureRequest(title: "Range select with shift-click",
+                                   detail: "Peek could move to alt-click.")
+        let second = FeatureRequest(title: "Vertical split", detail: "")
+        try? FeatureRequest.append(first, to: requestFile)
+        try? FeatureRequest.append(second, to: requestFile)
+        let stored = (try? String(contentsOf: requestFile, encoding: .utf8)) ?? ""
+        check("requests append one JSON object per line",
+              stored.split(separator: "\n").count == 2,
+              "a crash mid-write should cost one line, not the file")
+        check("each stored line is valid JSON on its own",
+              stored.split(separator: "\n").allSatisfy {
+                  (try? JSONSerialization.jsonObject(with: Data($0.utf8))) != nil
+              })
+        check("a request with no title is refused",
+              !FeatureRequest(title: "   ", detail: "detail").isValid)
+        check("whitespace is trimmed from the title",
+              FeatureRequest(title: "  spacing  ", detail: "").title == "spacing")
+        try? FileManager.default.removeItem(at: requestFile)
+
+        check("the issue URL carries title, body and label",
+              {
+                  guard let url = first.issueURL(repository: "a/b"),
+                        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                            .queryItems else { return false }
+                  let names = Set(items.map(\.name))
+                  return url.host == "github.com"
+                      && names == ["title", "body", "labels"]
+                      && items.first { $0.name == "labels" }?.value == "feature-request"
+              }())
+        check("an issue URL survives characters that need escaping",
+              FeatureRequest(title: "a & b?#=", detail: "x=1&y=2")
+                  .issueURL(repository: "a/b") != nil)
+        check("a long body is capped rather than sent whole",
+              {
+                  let huge = FeatureRequest(title: "t",
+                                            detail: String(repeating: "x", count: 9000))
+                  guard let url = huge.issueURL(repository: "a/b"),
+                        let body = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                            .queryItems?.first(where: { $0.name == "body" })?.value
+                  else { return false }
+                  return body.count <= 4000
+              }(),
+              "an over-long URL fails as a blank page, which is worse than truncation")
+
         check("tint scales with intensity",
               GlassRamp.tintOpacity(1.0) > GlassRamp.tintOpacity(0.0),
               String(format: "%.3f vs %.3f", GlassRamp.tintOpacity(1.0), GlassRamp.tintOpacity(0.0)))
