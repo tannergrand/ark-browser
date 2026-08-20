@@ -8,6 +8,10 @@ struct CommandBar: View {
     @State private var selection = 0
     @State private var aiRows: [BrowserState.Suggestion] = []
     @State private var aiTask: Task<Void, Never>?
+    /// Bumped on every keystroke. The jelly pulse is keyed on this rather than on
+    /// the text itself, so repeating a character still animates.
+    @State private var keystroke = 0
+    @State private var squashing = false
     @FocusState private var focused: Bool
 
     /// Local history/bookmark/open-tab matches are capped at three.
@@ -30,6 +34,11 @@ struct CommandBar: View {
             }
         }
         .frame(width: 620)
+        // A short squash on each keystroke. Anisotropic and tiny — 1.5% is
+        // enough to feel alive at typing speed, and anything larger turns into
+        // a wobble that fights the text you're reading.
+        .scaleEffect(x: squashing ? 1.012 : 1, y: squashing ? 0.978 : 1)
+        .animation(Motion.rowSquish, value: squashing)
         .glassSurface(.floating, in: RoundedRectangle(cornerRadius: 14, style: .continuous),
                       enabled: state.glassChrome, intensity: state.glassIntensity)
         .glassRim(cornerRadius: 14, enabled: state.glassChrome, intensity: state.glassIntensity)
@@ -53,8 +62,24 @@ struct CommandBar: View {
         .onChange(of: text) { _, new in
             selection = 0
             scheduleAISuggestions(for: new)
+            pulse()
         }
         .onDisappear { aiTask?.cancel() }
+    }
+
+    /// Squash, then release. The release is deliberately not another spring:
+    /// two springs racing at typing speed reads as jitter.
+    private func pulse() {
+        keystroke += 1
+        let stamp = keystroke
+        squashing = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(70))
+            // Only the newest keystroke releases the squash, so holding a key
+            // stays compressed instead of flickering.
+            guard stamp == keystroke else { return }
+            squashing = false
+        }
     }
 
     // MARK: - Field

@@ -38,6 +38,32 @@ them.
 
 ---
 
+## v0.26.0 — Published (2026-08-20)
+
+Live at **github.com/tannergrand/ark-browser**, release `v0.26.0`.
+
+- Published with its own history rather than a subtree of claude-workspace, so
+  nothing from the surrounding workspace can travel with it. `tools/publish.sh`
+  mirrors the folder into a repo outside the workspace — no nested `.git` for the
+  outer repo to trip over. 56 files, nothing outside the project.
+- Scanned for secrets before the first push. The only hit was the `sk-ant-…`
+  placeholder in a `SecureField`.
+- Updater verified against the live feed: tag, asset URL, and the `sha256` in the
+  release notes all parse, and the app's own version matches `VERSION`.
+- **All AI defaults to on-device.** One setting drives grouping, command-bar
+  completions and the page assistant. The legacy `automatic` value still decodes
+  and resolves to on-device; an explicit Claude choice is left alone.
+- The strip above the page with the sidebar hidden lost its glass fill and
+  hairline — it's a gap the tinted gutter shows through, so the traffic lights
+  sit on the same colour as every other edge instead of on a stray toolbar.
+- Only one chatbot toggle at a time: the chrome-strip button hides while an
+  auto-hidden sidebar is revealed.
+- Command bar squashes on each keystroke, keyed on a counter rather than the text
+  so a repeated character still animates, and only the newest keystroke releases
+  the squash — holding a key stays compressed instead of flickering.
+
+---
+
 ## v0.26 — Renamed to Ark, updates, real new tabs (2026-08-20)
 
 ### Renamed to Ark
