@@ -38,6 +38,27 @@ them.
 
 ---
 
+## v0.28.2 — Stop the repeating permission prompt (2026-08-20)
+
+### Fixed
+
+- **“Ark would like to access data from other apps” asked on every 1Password
+  authentication.** That prompt is TCC, and TCC remembers a decision against the
+  app's *code identity*. The rename left the existing local certificate called
+  “Drift Code Signing”, while `build.sh` looked for “Ark Code Signing”, found
+  nothing, and fell back to **ad-hoc signing** — which has no stable identity, so
+  every rebuild produced a new cdhash and macOS treated it as a new app with no
+  saved answer.
+  - `build.sh` now accepts either name, and says loudly when it falls through to
+    ad-hoc, since that fallback is exactly what causes the prompts.
+  - Confirmed: `Signature=adhoc` before, `Authority=Drift Code Signing` after.
+  - Expect **one** more prompt — the bundle identifier changed with the rename,
+    so the grant is being recorded fresh. It should stick after that.
+  - Worth knowing: this was a developer-machine artifact. A released build isn't
+    rebuilt on your friends' Macs, so they'd have been asked once regardless.
+
+---
+
 ## v0.28.1 — Feature requests from inside Ark (2026-08-20)
 
 ### Added

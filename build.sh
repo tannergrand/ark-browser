@@ -115,19 +115,35 @@ ENT
 #                             Ad-hoc signatures change every build, so macOS
 #                             re-asks for consent on every single rebuild.
 #   3. ad-hoc               — works, but expect a keychain prompt per rebuild.
-LOCAL_IDENTITY="Ark Code Signing"
+# Any stable local identity will do; the *name* is irrelevant to macOS. Both are
+# checked because the rename to Ark left the existing certificate called "Drift
+# Code Signing" — build.sh looked for "Ark Code Signing", found nothing, and fell
+# back to ad-hoc. Ad-hoc has no stable identity, so its cdhash changes on every
+# build, and TCC re-asks "would like to access data from other apps" every single
+# time. That prompt recurring is the symptom of an unstable signature.
+LOCAL_IDENTITY=""
+for candidate in "Ark Code Signing" "Drift Code Signing"; do
+  if security find-identity -v -p codesigning 2>/dev/null | grep -q "$candidate"; then
+    LOCAL_IDENTITY="$candidate"
+    break
+  fi
+done
+
 if [ -n "${ARK_SIGN_IDENTITY:-}" ]; then
   echo "==> signing as $ARK_SIGN_IDENTITY (keychain sync enabled)"
   codesign --force --options runtime \
     --entitlements "$APP/Contents/Resources/Ark.entitlements" \
     --sign "$ARK_SIGN_IDENTITY" "$APP"
-elif security find-identity -v -p codesigning 2>/dev/null | grep -q "$LOCAL_IDENTITY"; then
-  echo "==> signing as $LOCAL_IDENTITY (stable identity; keychain consent sticks)"
+elif [ -n "$LOCAL_IDENTITY" ]; then
+  echo "==> signing as $LOCAL_IDENTITY (stable identity; TCC and keychain consent stick)"
   codesign --force --sign "$LOCAL_IDENTITY" "$APP"
 else
   echo "==> ad-hoc signing — keychain will re-ask for consent on every rebuild."
   echo "    See README > Passwords for how to create a stable local identity."
   codesign --force --sign - "$APP" >/dev/null 2>&1 || echo "   (signing skipped)"
+  echo "   NOTE: ad-hoc means a new code identity on every build, so macOS will"
+  echo "   re-ask for app-data and keychain access each time. Create a stable"
+  echo "   local identity to stop that — see the comment above." 
 fi
 
 LSREG="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"

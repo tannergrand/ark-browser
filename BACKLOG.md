@@ -27,19 +27,21 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 |---|------|----------|-------|
 | 1 | **Speed up command-bar suggestions** | P1 | Your report, via the in-app form. Likely cause: `OnDeviceSuggestions` builds a fresh `LanguageModelSession` per keystroke, and the debounce is 400 ms on top of that. Reusing one warm session and cutting the debounce are the two levers. Local history rows are already instant. |
 | 2 | **Slimmer top strip with the sidebar hidden** | P2 | Your screenshot: the traffic-light strip is 26pt plus an 8pt gutter above the page, so ~34pt of empty chrome. The floor is whatever clears the traffic lights (~22pt) — worth checking whether the gutter can be shared rather than stacked. |
-| 3 | Cross-origin iframe autofill | P2 | Okta/Auth0/Stripe login widgets get no bridge — `forMainFrameOnly: true`. Turning it off runs the password script in every frame on every page, which is a real surface-area increase. Your call, not mine. |
-| 4 | Rolling backups of `state.json` | P1 | One file, no history. You already lost a set of Today tabs to a state bug once. |
-| 5 | Private window | P2 | Every tab shares one cookie store today. |
-| 6 | TOTP autofill | P3 | Already parsed out of `op`; nothing fills it. |
-| 7 | Vault scoping for 1Password | P2 | Currently whole-account read access. |
-| 8 | Boosts — per-site CSS/JS | P3 | Arc parity. |
-| 9 | Reader mode | P3 | |
-| 10 | Claude driving the browser | P2 | Deferred to "v2" early on. Prompt injection is the actual design problem, not the tool surface. |
+| 3 | **Close animations, single and bulk** | P2 | Rows vanish instantly today. Bulk close especially — closing four tabs should read as four rows leaving, staggered, not the list jumping. `Motion.appear` already handles insertion; removal is a plain fade. |
+| 4 | Cross-origin iframe autofill | P2 | Okta/Auth0/Stripe login widgets get no bridge — `forMainFrameOnly: true`. Turning it off runs the password script in every frame on every page, which is a real surface-area increase. Your call, not mine. |
+| 5 | Rolling backups of `state.json` | P1 | One file, no history. You already lost a set of Today tabs to a state bug once. |
+| 6 | Private window | P2 | Every tab shares one cookie store today. |
+| 7 | TOTP autofill | P3 | Already parsed out of `op`; nothing fills it. |
+| 8 | Vault scoping for 1Password | P2 | Currently whole-account read access. |
+| 9 | Boosts — per-site CSS/JS | P3 | Arc parity. |
+| 10 | Reader mode | P3 | |
+| 11 | Claude driving the browser | P2 | Deferred to "v2" early on. Prompt injection is the actual design problem, not the tool surface. |
 
 ---
 
 ## Shipped
 
+- `0.28.2` — Fixed the repeating "would like to access data from other apps" prompt: the rename left the signing certificate named for Drift, so every build fell back to ad-hoc and got a new code identity.
 - `0.28.1` — In-app feature requests (Help ▸ Request a Feature…), synced into this Inbox by `tools/inbox-sync.sh`. Chatbot toggle moved beside the shield.
 - `0.28.0` — ⌘-click multi-select in the sidebar, with bulk group/pin/close and multi-drag.
 - `0.27.2` — Pinned tiles stretch to fill the sidebar width (height fixed). Settings window has an opaque backing so the tab bar is readable. Command-bar ripple moved onto the field row.
