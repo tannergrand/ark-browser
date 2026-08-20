@@ -26,14 +26,15 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 | # | Item | Priority | Notes |
 |---|------|----------|-------|
 | 1 | **Speed up command-bar suggestions** | P1 | Your report, via the in-app form. Likely cause: `OnDeviceSuggestions` builds a fresh `LanguageModelSession` per keystroke, and the debounce is 400 ms on top of that. Reusing one warm session and cutting the debounce are the two levers. Local history rows are already instant. |
-| 2 | Cross-origin iframe autofill | P2 | Okta/Auth0/Stripe login widgets get no bridge — `forMainFrameOnly: true`. Turning it off runs the password script in every frame on every page, which is a real surface-area increase. Your call, not mine. |
-| 3 | Rolling backups of `state.json` | P1 | One file, no history. You already lost a set of Today tabs to a state bug once. |
-| 4 | Private window | P2 | Every tab shares one cookie store today. |
-| 5 | TOTP autofill | P3 | Already parsed out of `op`; nothing fills it. |
-| 6 | Vault scoping for 1Password | P2 | Currently whole-account read access. |
-| 7 | Boosts — per-site CSS/JS | P3 | Arc parity. |
-| 8 | Reader mode | P3 | |
-| 9 | Claude driving the browser | P2 | Deferred to "v2" early on. Prompt injection is the actual design problem, not the tool surface. |
+| 2 | **Slimmer top strip with the sidebar hidden** | P2 | Your screenshot: the traffic-light strip is 26pt plus an 8pt gutter above the page, so ~34pt of empty chrome. The floor is whatever clears the traffic lights (~22pt) — worth checking whether the gutter can be shared rather than stacked. |
+| 3 | Cross-origin iframe autofill | P2 | Okta/Auth0/Stripe login widgets get no bridge — `forMainFrameOnly: true`. Turning it off runs the password script in every frame on every page, which is a real surface-area increase. Your call, not mine. |
+| 4 | Rolling backups of `state.json` | P1 | One file, no history. You already lost a set of Today tabs to a state bug once. |
+| 5 | Private window | P2 | Every tab shares one cookie store today. |
+| 6 | TOTP autofill | P3 | Already parsed out of `op`; nothing fills it. |
+| 7 | Vault scoping for 1Password | P2 | Currently whole-account read access. |
+| 8 | Boosts — per-site CSS/JS | P3 | Arc parity. |
+| 9 | Reader mode | P3 | |
+| 10 | Claude driving the browser | P2 | Deferred to "v2" early on. Prompt injection is the actual design problem, not the tool surface. |
 
 ---
 
