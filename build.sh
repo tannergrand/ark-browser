@@ -11,12 +11,30 @@ for arg in "$@"; do
   case "$arg" in
     debug|release) CONFIG="$arg" ;;
     --install) INSTALL=1 ;;
-    *) echo "usage: ./build.sh [debug|release] [--install]"; exit 2 ;;
+    --staging) ;;   # handled below, where the channel is resolved
+    *) echo "usage: ./build.sh [debug|release] [--install] [--staging]"; exit 2 ;;
   esac
 done
 VERSION="$(cat VERSION 2>/dev/null || echo 0.1.0)"
 BUILD="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
-APP="Ark.app"
+
+# Two channels. Staging is a *separate app* — its own identifier, name, support
+# folder and website data — so it can run beside the real one without sharing
+# state. A staging build pointed at production's state.json could lose real tabs
+# to the very bug you were hunting.
+CHANNEL="production"
+NAME="Ark"
+BUNDLE_ID="com.tannergrandstaff.ark"
+for arg in "$@"; do
+  if [ "$arg" = "--staging" ]; then
+    CHANNEL="staging"
+    NAME="Ark Staging"
+    BUNDLE_ID="com.tannergrandstaff.ark.staging"
+    # Distinguishable at a glance in the updater and the about box.
+    VERSION="$VERSION-staging"
+  fi
+done
+APP="$NAME.app"
 
 echo "==> swift build -c $CONFIG"
 swift build -c "$CONFIG"
@@ -43,10 +61,11 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Ark</string>
-  <key>CFBundleDisplayName</key><string>Ark</string>
+  <key>CFBundleName</key><string>$NAME</string>
+  <key>CFBundleDisplayName</key><string>$NAME</string>
   <key>CFBundleExecutable</key><string>Ark</string>
-  <key>CFBundleIdentifier</key><string>com.tannergrandstaff.ark</string>
+  <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
+  <key>ARKChannel</key><string>$CHANNEL</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$BUILD</string>
@@ -95,13 +114,13 @@ PLIST
 # iCloud Keychain sync needs a real team identity; ad-hoc gets -34018.
 # Set ARK_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" to
 # sign properly, and sync turns itself on at next launch.
-cat > "$APP/Contents/Resources/Ark.entitlements" <<'ENT'
+cat > "$APP/Contents/Resources/Ark.entitlements" <<ENT
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
   <key>keychain-access-groups</key>
-  <array><string>$(AppIdentifierPrefix)com.tannergrandstaff.ark</string></array>
+  <array><string>\$(AppIdentifierPrefix)$BUNDLE_ID</string></array>
 </dict>
 </plist>
 ENT
@@ -155,7 +174,7 @@ fi
 # Being the default browser only sticks from a stable location. Running from
 # the project folder works, but every rebuild re-registers a new bundle.
 if [ "$INSTALL" = "1" ]; then
-  DEST="/Applications/Ark.app"
+  DEST="/Applications/$NAME.app"
   echo "==> installing to $DEST"
   if pgrep -f "$DEST/Contents/MacOS/Ark" >/dev/null 2>&1; then
     echo "   quitting the running copy first"

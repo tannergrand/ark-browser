@@ -17,6 +17,9 @@ import Foundation
 /// original identifier for exactly this reason.
 enum Migration {
     static func runIfNeeded() {
+        // Staging has its own folder and its own website data; pulling a Drift
+        // install into it would defeat the point of a separate channel.
+        guard !AppPaths.isStaging else { return }
         let support = FileManager.default.urls(for: .applicationSupportDirectory,
                                                in: .userDomainMask)[0]
         copyOnce(from: support.appendingPathComponent("Drift"),

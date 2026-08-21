@@ -54,12 +54,29 @@ got a test instead.
 launch — no Screen Recording permission needed, since nothing is captured off
 the screen.
 
-## Releasing
+## Two channels
+
+**Staging** is a separate app — `com.tannergrandstaff.ark.staging`, its own
+`Ark Staging` support folder, its own cookies. It runs beside the real one and
+cannot touch its tabs, sessions or credentials.
 
 ```
-tools/release.sh 0.27.0 "What changed"
-tools/publish.sh "Sync"
+tools/stage.sh                  # build, install to /Applications, launch
 ```
+
+Staging never self-updates: a release download would replace the build you're
+testing. It shows a STAGING badge in Settings, and its title bar says so.
+
+**Production** is `/Applications/Ark.app`, updated from this repo's release feed.
+Promote a tested change with:
+
+```
+tools/release.sh 0.29.0 "What changed"    # builds, self-tests, zips, publishes
+```
+
+The release script gates on the self-test, tags in the publish mirror rather than
+here, and passes `gh` an explicit `--repo` — this directory lives inside another
+repository, so tagging locally would put an Ark tag on the wrong one.
 
 ## Not implemented
 

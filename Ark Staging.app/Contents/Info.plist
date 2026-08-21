@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>Ark Staging</string>
+  <key>CFBundleDisplayName</key><string>Ark Staging</string>
+  <key>CFBundleExecutable</key><string>Ark</string>
+  <key>CFBundleIdentifier</key><string>com.tannergrandstaff.ark.staging</string>
+  <key>ARKChannel</key><string>staging</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>0.28.3-staging</string>
+  <key>CFBundleVersion</key><string>101</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundleIconName</key><string>AppIcon</string>
+  <key>NSHighResolutionCapable</key><true/>
+
+  <!-- Declares Ark as a web browser so macOS lists it under
+       System Settings > Desktop & Dock > Default web browser. -->
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key><string>Web site URL</string>
+      <key>CFBundleTypeRole</key><string>Viewer</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>http</string>
+        <string>https</string>
+      </array>
+    </dict>
+  </array>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key><string>HTML document</string>
+      <key>CFBundleTypeRole</key><string>Viewer</string>
+      <key>LSHandlerRank</key><string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>public.html</string>
+        <string>public.xhtml</string>
+        <string>public.url</string>
+      </array>
+    </dict>
+  </array>
+  <key>NSSupportsAutomaticTermination</key><false/>
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoads</key><true/>
+  </dict>
+</dict>
+</plist>

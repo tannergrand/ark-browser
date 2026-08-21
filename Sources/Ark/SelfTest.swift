@@ -704,6 +704,26 @@ enum SelfTest {
               }(),
               "an over-long URL fails as a blank page, which is worse than truncation")
 
+        // Channels. The whole point is that staging cannot touch production's
+        // data, so the path derivation is what gets pinned down.
+        check("this build knows its channel",
+              AppPaths.channel == .production || AppPaths.channel == .staging)
+        check("the support folder follows the bundle name",
+              AppPaths.supportDirectory.lastPathComponent == AppPaths.folderName,
+              AppPaths.supportDirectory.path)
+        check("staging and production can't resolve to the same folder",
+              !AppPaths.supportDirectory.path.hasSuffix("/Ark")
+              || AppPaths.channel == .production,
+              "a staging build in production's folder could lose real tabs")
+        check("support files live under the support folder",
+              AppPaths.supportFile("x.json").deletingLastPathComponent()
+              == AppPaths.supportDirectory)
+        check("staging never auto-checks for updates",
+              MainActor.assumeIsolated {
+                  !AppPaths.isStaging || Updater().automaticallyChecks == false
+              },
+              "a release download would replace the build under test")
+
         check("tint scales with intensity",
               GlassRamp.tintOpacity(1.0) > GlassRamp.tintOpacity(0.0),
               String(format: "%.3f vs %.3f", GlassRamp.tintOpacity(1.0), GlassRamp.tintOpacity(0.0)))

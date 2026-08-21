@@ -42,6 +42,7 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 
 ## Shipped
 
+- `0.28.4` — Staging channel (`tools/stage.sh`): a separate app with its own data, which never self-updates. Release script fixed to operate on the publish mirror.
 - `0.28.3` — Darker, simpler, centred icon: one hull, one cabin, one waterline on a near-black tile.
 - `0.28.2` — Fixed the repeating "would like to access data from other apps" prompt: the rename left the signing certificate named for Drift, so every build fell back to ad-hoc and got a new code identity.
 - `0.28.1` — In-app feature requests (Help ▸ Request a Feature…), synced into this Inbox by `tools/inbox-sync.sh`. Chatbot toggle moved beside the shield.

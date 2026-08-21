@@ -41,10 +41,7 @@ struct FeatureRequest: Codable, Identifiable {
 
     var isValid: Bool { !title.isEmpty }
 
-    static var storeURL: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Ark/requests.jsonl")
-    }
+    static var storeURL: URL { AppPaths.supportFile("requests.jsonl") }
 
     /// One JSON object per line, appended. A single-line-per-record format
     /// survives a crash mid-write with at most one bad line, where a re-encoded

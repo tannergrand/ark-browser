@@ -45,7 +45,8 @@ final class Updater {
     nonisolated static let repository = "tannergrand/ark-browser"
 
     var phase: Phase = .idle
-    var automaticallyChecks: Bool = true
+    /// Off in staging: there is nothing on the release feed that applies.
+    var automaticallyChecks: Bool = !AppPaths.isStaging
     var lastChecked: Date?
 
     nonisolated static var currentVersion: String {
@@ -101,6 +102,16 @@ final class Updater {
     }
 
     func check(userInitiated: Bool = false) async {
+        // A staging build came from `tools/stage.sh`, not from a release.
+        // Installing a release over it would silently replace the thing you are
+        // testing with production — and quietly repoint you at the other
+        // channel's app bundle.
+        if AppPaths.isStaging {
+            phase = userInitiated
+                ? .failed("This is a staging build — update it with tools/stage.sh.")
+                : .idle
+            return
+        }
         if case .downloading = phase { return }
         phase = .checking
         defer { lastChecked = Date() }

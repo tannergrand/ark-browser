@@ -95,7 +95,7 @@ struct ArkApp: App {
     }
 
     var body: some Scene {
-        Window("Ark", id: "main") {
+        Window(AppPaths.isStaging ? "Ark Staging" : "Ark", id: "main") {
             RootView()
                 .environment(state)
                 .background(WindowMouseTracking().frame(width: 0, height: 0))

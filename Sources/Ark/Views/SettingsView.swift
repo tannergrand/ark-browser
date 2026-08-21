@@ -189,11 +189,23 @@ private struct GeneralSettings: View {
             Section("Updates") {
                 HStack {
                     Text("Ark \(Updater.currentVersion)")
+                    if AppPaths.isStaging {
+                        Text("STAGING")
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(.horizontal, 5).padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.22), in: Capsule())
+                    }
                     Spacer()
                     Button("Check Now") {
                         Task { await state.updater.check(userInitiated: true) }
                     }
                     .controlSize(.small)
+                    .disabled(AppPaths.isStaging)
+                }
+                if AppPaths.isStaging {
+                    Text("This is the staging copy — separate identifier, separate data folder, separate cookies. It updates when you run `tools/stage.sh`, not from the release feed, so a release can't replace what you're testing.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Toggle("Check for updates at launch", isOn: Binding(
                     get: { state.updater.automaticallyChecks },

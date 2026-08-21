@@ -183,11 +183,8 @@ enum WhatsNew {
         let picked = sections(from: markdown, since: lastSeen, upTo: current)
         guard !picked.isEmpty else { return nil }
 
-        let support = FileManager.default.urls(for: .applicationSupportDirectory,
-                                                in: .userDomainMask)[0]
-            .appendingPathComponent("Ark", isDirectory: true)
-        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-        let target = support.appendingPathComponent("whats-new-\(current).html")
+        AppPaths.ensureSupportDirectory()
+        let target = AppPaths.supportFile("whats-new-\(current).html")
         do {
             try html(from: picked, version: current).write(to: target, atomically: true,
                                                            encoding: .utf8)
