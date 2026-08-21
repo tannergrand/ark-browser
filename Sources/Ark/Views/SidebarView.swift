@@ -37,7 +37,11 @@ struct SidebarView: View {
             // Just space for the traffic lights — but only when they're actually
             // over the sidebar. Floating, they're above the panel entirely, and
             // reserving room for them left an empty band across its top.
-            if !floating {
+            if floating {
+                // The panel's own top edge is right there; without this the nav
+                // row is flush against the glass.
+                Color.clear.frame(height: 6)
+            } else {
                 WindowChromeArea()
                     .frame(height: 26)
             }
@@ -242,6 +246,7 @@ struct SidebarView: View {
         .foregroundStyle(state.showAISidebar
                          ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
         .help("Ask this page (⌘⇧A)")
+        .iconHint("Ask this page")
     }
 
     /// AI tab grouping, as an icon beside the Today label — it acts on the tabs
@@ -271,6 +276,7 @@ struct SidebarView: View {
         .help(state.organizing
               ? "Grouping tabs…"
               : "Group these \(state.organizableTabs.count) tabs by topic with AI")
+        .iconHint(state.organizing ? "Grouping…" : "Group tabs with AI")
     }
 
     // MARK: - Today
@@ -296,6 +302,7 @@ struct SidebarView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(JellyPress(scale: 0.8))
+                    .iconHint("Clear tabs")
                     .help("Clear tabs — closes \(state.clearableTodayCount) Today tab\(state.clearableTodayCount == 1 ? "" : "s"), keeps the one you're on. ⌘⇧T reopens.")
                 }
             }
@@ -362,7 +369,7 @@ struct SidebarView: View {
                 state.downloads.hasUnseen = false
             } label: {
                 Image(systemName: state.downloads.active > 0
-                      ? "arrow.down.circle.fill" : "arrow.down.circle")
+                      ? "tray.and.arrow.down.fill" : "tray.and.arrow.down")
                     .font(.system(size: 12))
                     .foregroundStyle(state.downloads.hasUnseen
                                      ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
@@ -372,9 +379,10 @@ struct SidebarView: View {
             }
             .buttonStyle(.plain)
             .help("Downloads (⌘⌥L)")
+            .iconHint("Downloads", above: true)
 
             Button { state.newGroup() } label: {
-                Image(systemName: "folder.badge.plus")
+                Image(systemName: "rectangle.stack.badge.plus")
                     .font(.system(size: 12))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 9)
@@ -382,6 +390,7 @@ struct SidebarView: View {
             }
             .buttonStyle(.plain)
             .help("New group")
+            .iconHint("New group", above: true)
         }
         .foregroundStyle(.secondary)
     }
@@ -407,25 +416,35 @@ struct SidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .iconHint(active ? "Blocking on" : "Blocking off here")
         .help(active
               ? "Blocking on — \(count) blocked (approximate). Click to allow this site."
               : "Blocking off for this site. Click to re-enable.")
     }
 
+    /// Nav icons. Hierarchical rendering and a slightly heavier weight, on a
+    /// rounded-square that appears on hover — enough treatment that the row reads
+    /// as designed rather than as default SF Symbols dropped in a line.
     private func navButton(_ symbol: String, enabled: Bool, active: Bool = false,
                            help: String = "",
                            action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 11, weight: .medium))
-                .frame(width: 20, height: 20)
+                .font(.system(size: 11.5, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .frame(width: 22, height: 22)
                 .foregroundStyle(active ? AnyShapeStyle(Color.accentColor)
                                         : AnyShapeStyle(enabled ? .secondary : .tertiary))
+                .background {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(active ? Color.accentColor.opacity(0.16) : .clear)
+                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(JellyPress(scale: 0.88))
         .disabled(!enabled)
         .help(help)
+        .iconHint(enabled ? help : "")
     }
 
     @ViewBuilder
@@ -492,8 +511,9 @@ private struct NodeRow: View {
                   ? "Collapse this group"
                   : "Expand this group (\(item.children.count) tab\(item.children.count == 1 ? "" : "s"))")
 
-            Image(systemName: "folder.fill")
+            Image(systemName: "rectangle.stack.fill")
                 .font(.system(size: 10))
+                .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(.secondary)
 
             if renamingID == item.id {

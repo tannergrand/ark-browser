@@ -104,6 +104,16 @@ enum WindowProbe {
 
     /// The gap between the web content and each window edge, measured from the
     /// pane's own registered frame. "Looks uneven" is worth a number.
+    private static func shieldFrame(in root: NSView) -> CGRect? {
+        var found: NSView?
+        func walk(_ view: NSView) {
+            if view is CursorShield.Shield, found == nil { found = view }
+            view.subviews.forEach(walk)
+        }
+        walk(root)
+        return found.map { $0.convert($0.bounds, to: root) }
+    }
+
     @MainActor
     static func reportContentInsets(_ state: BrowserState) {
         guard let window = NSApp.windows.first(where: { $0.isVisible }),
@@ -177,6 +187,15 @@ enum WindowProbe {
             say(String(format: "%@ (%d,%d): #%02X%02X%02X", label, px, py,
                        Int(color.redComponent * 255), Int(color.greenComponent * 255),
                        Int(color.blueComponent * 255)))
+        }
+        // Corners of the floating panel, if one is up: a square backing shows as
+        // the corner pixel matching the panel's fill instead of what's behind it.
+        if let shield = shieldFrame(in: view) {
+            // The view's origin is bottom-left; the bitmap's is top-left.
+            let topY = bounds.height - shield.maxY
+            read("panel corner (2,2 in)", shield.minX + 2, topY + 2)
+            read("panel inset (14,14 in)", shield.minX + 14, topY + 14)
+            read("just outside panel", shield.minX - 4, topY - 4)
         }
         let midY = bounds.height / 2
         read("sidebar interior", 100, midY)

@@ -95,8 +95,16 @@ struct RootView: View {
                         // underneath stops setting it — hovering a link behind
                         // the floating sidebar turned the pointer into a hand.
                         .background(CursorShield())
-                        .background(ChromeTint(tint: state.chromeTint,
-                                               strength: state.chromeTintStrength))
+                        // Clipped to the panel's own shape. The tint is a plain
+                        // rectangle, and behind a rounded glass surface its square
+                        // corners stuck out past the curve — a sharp-cornered
+                        // block showing at each corner of a rounded panel.
+                        .background(
+                            ChromeTint(tint: state.chromeTint,
+                                       strength: state.chromeTintStrength)
+                                .clipShape(RoundedRectangle(cornerRadius: 14,
+                                                            style: .continuous))
+                        )
                         .glassSurface(.chrome,
                                       in: RoundedRectangle(cornerRadius: 14, style: .continuous),
                                       enabled: state.glassChrome, intensity: state.glassIntensity)

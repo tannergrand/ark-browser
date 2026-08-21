@@ -46,7 +46,10 @@ struct SettingsView: View {
             }
         }
         .frame(width: 620, height: 560)
-        .background(SettingsBackdrop())
+        // No `ignoresSafeArea` at this level, deliberately. Extending the
+        // backdrop under the title bar let the tab strip ride up into it, so the
+        // traffic lights ended up sitting *inside* the row of tab icons.
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 }
 
@@ -60,7 +63,6 @@ struct SettingsBackdrop: View {
     var body: some View {
         Color(nsColor: .windowBackgroundColor)
             .overlay(Color.primary.opacity(0.03))
-            .ignoresSafeArea()
     }
 }
 

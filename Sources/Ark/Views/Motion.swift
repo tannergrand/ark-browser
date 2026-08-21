@@ -230,3 +230,63 @@ extension View {
         transition(Motion.appear).animation(Motion.jelly, value: true)
     }
 }
+
+
+/// A small label that appears under an icon on hover.
+///
+/// macOS `help(_:)` tooltips still apply — they're what accessibility tooling
+/// reads — but they take well over a second to appear, which is long enough that
+/// an unfamiliar icon stays unexplained. This shows the same words in ~0.3s.
+///
+/// Deliberately not hit-testable and drawn in an overlay, so it can extend past
+/// the sidebar's edge rather than being squeezed into its width.
+struct IconHint: ViewModifier {
+    let text: String
+    /// Below by default; above for anything sitting at the bottom of the window.
+    var above: Bool = false
+
+    @State private var hovering = false
+    @State private var shown = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { inside in
+                hovering = inside
+                if inside {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(280))
+                        // Only if the pointer is still there — a pass-through
+                        // shouldn't leave a label behind.
+                        if hovering { shown = true }
+                    }
+                } else {
+                    shown = false
+                }
+            }
+            .overlay(alignment: above ? .top : .bottom) {
+                if shown, !text.isEmpty {
+                    Text(text)
+                        .font(.system(size: 10.5, weight: .medium))
+                        .lineLimit(1)
+                        .fixedSize()
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(.regularMaterial, in: Capsule())
+                        .overlay(Capsule().strokeBorder(.white.opacity(0.10), lineWidth: 0.5))
+                        .shadow(color: .black.opacity(0.28), radius: 6, y: 2)
+                        .offset(y: above ? -24 : 24)
+                        .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                        .allowsHitTesting(false)
+                }
+            }
+            .animation(Motion.pop, value: shown)
+            .zIndex(shown ? 20 : 0)
+    }
+}
+
+extension View {
+    /// Fast hover label. Pair it with `.help()` rather than replacing it.
+    func iconHint(_ text: String, above: Bool = false) -> some View {
+        modifier(IconHint(text: text, above: above))
+    }
+}
