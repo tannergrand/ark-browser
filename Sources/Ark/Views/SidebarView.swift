@@ -756,7 +756,11 @@ private struct TabRow: View {
         // have given the same information and did — along with breaking
         // reordering and selection outright, because two drag gestures on one
         // row fight over the same events.
-        .gesture(
+        // `simultaneousGesture`, not `gesture`: a plain tap gesture in the same
+        // list can claim the sequence on mouse-down and cancel the drag below it.
+        // This is the second thing that broke dragging — the first was the cursor
+        // monitor swallowing drag events — and both were mine.
+        .simultaneousGesture(
             SpatialTapGesture(coordinateSpace: .local)
                 .onEnded { value in
                     pressAnchor = UnitPoint(

@@ -51,16 +51,22 @@ struct ArkApp: App {
     /// was not enough.
     private static func installSidebarEdgeMonitor(_ state: BrowserState) {
         NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged]) { event in
-            // Cursor ownership first, and this has to happen before the
-            // auto-hide guard: it applies to any floating panel, not just the
-            // sidebar. Swallowing the event is the point — WebKit sets the
-            // cursor while handling mouseMoved, and it gets those through its own
-            // tracking area no matter what is drawn above it. Cursor rects can't
-            // win that argument; not delivering the event can.
+            // Cursor ownership, before the auto-hide guard: it applies to any
+            // floating panel, not just the sidebar. WebKit sets the cursor while
+            // handling mouseMoved and receives those through its own tracking
+            // area regardless of what is drawn above it, so not delivering the
+            // event is the only thing that wins.
+            //
+            // **Only mouseMoved is swallowed.** The first version dropped
+            // `.leftMouseDragged` as well, which is the same monitor's other
+            // event type — and that broke dragging a tab inside the floating
+            // sidebar outright, because SwiftUI never saw the drag. A drag still
+            // gets the arrow cursor; it just also gets delivered.
             if let window = event.window,
                CursorShield.coversPointer(event.locationInWindow, in: window) {
                 NSCursor.arrow.set()
-                return nil
+                if event.type == .mouseMoved { return nil }
+                return event
             }
             guard state.sidebarAutoHide, event.window != nil else { return event }
             let x = event.locationInWindow.x

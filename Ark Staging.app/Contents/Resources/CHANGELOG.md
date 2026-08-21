@@ -38,6 +38,35 @@ them.
 
 ---
 
+## Unreleased (staging) — sharp corner, settings title bar, icon hints
+
+### Fixed
+
+- **A sharp-cornered block showed at the corners of the floating sidebar.** The
+  page tint is a plain rectangle, and it sat behind a rounded glass surface — so
+  its square corners stuck out past the curve. Clipped to the panel's shape.
+- **The settings window put its tab icons in the title bar**, with the traffic
+  lights sitting inside the row. My own regression from the redesign: the
+  backdrop used `ignoresSafeArea`, which let the tab strip ride up under the
+  title bar. Removed at that level.
+- The floating panel's nav row was flush against its top edge; it now has 6pt of
+  its own, on top of the 34pt that clears the traffic lights.
+
+### Changed
+
+- **Fast hover labels on the icon-only controls.** macOS `help(_:)` tooltips still
+  apply — they're what accessibility tooling reads — but they take over a second,
+  long enough that an unfamiliar icon stays unexplained. A small capsule now
+  appears in ~0.3s, drawn in an overlay so it can extend past the sidebar rather
+  than being squeezed into its width, and it only appears if the pointer is still
+  there when the delay elapses.
+- **Sidebar icons look less stock**: hierarchical rendering, a heavier weight, an
+  accent-tinted rounded square when a control is active, and a few glyphs swapped
+  for ones with more character (`tray.and.arrow.down` for downloads,
+  `rectangle.stack` for groups).
+
+---
+
 ## Unreleased (staging) — even gutters, cleaner hidden-sidebar layout
 
 ### Fixed

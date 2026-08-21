@@ -38,6 +38,27 @@ them.
 
 ---
 
+## Unreleased (staging) — tab dragging fixed (twice mine)
+
+Both causes were changes I made earlier today.
+
+- **The cursor fix swallowed drag events.** The mouse monitor matches
+  `.mouseMoved` *and* `.leftMouseDragged`, and my shield check returned nil for
+  whichever arrived — so dragging a tab inside the floating sidebar never reached
+  SwiftUI. Only `mouseMoved` is dropped now; a drag still gets the arrow cursor,
+  it just also gets delivered.
+- **The click-anchored squash could cancel the drag.** `SpatialTapGesture` was
+  added with `.gesture`, which puts it in the same list as the drag gesture where
+  it can claim the sequence on mouse-down. It's `.simultaneousGesture` now.
+
+This is the third time motion or cursor work has broken dragging, and each time
+the cause was a gesture or event change made for a cosmetic reason. The drag path
+itself — `TabDragCoordinator` — hasn't been touched since the rewrite, and its
+resolution still traces correctly: `beside`, `intoGroup`, `root`, `split`, `none`
+all resolve as expected under `ARK_DRAG_DEBUG=1`.
+
+---
+
 ## Unreleased (staging) — sharp corner, settings title bar, icon hints
 
 ### Fixed
