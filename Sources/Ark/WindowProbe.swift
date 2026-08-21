@@ -13,6 +13,14 @@ import SwiftUI
 /// seconds after launch, with the colour at a few named points logged. That
 /// turns "the border still isn't tinted" from a guess into a measurement.
 enum WindowProbe {
+    /// Frames published by the views themselves, so measurements come from the
+    /// layout rather than from counting pixels in a screenshot.
+    @MainActor static var reportedFrames: [String: CGRect] = [:]
+
+    static func report(_ label: String, _ frame: CGRect) {
+        Task { @MainActor in reportedFrames[label] = frame }
+    }
+
     static func armIfRequested(_ state: BrowserState) {
         guard let path = ProcessInfo.processInfo.environment["ARK_PROBE_PNG"] else { return }
         let delay = Double(ProcessInfo.processInfo.environment["ARK_PROBE_DELAY"] ?? "6") ?? 6
@@ -53,6 +61,7 @@ enum WindowProbe {
                 say("chromeTint=nil")
             }
             say("focused=\(state.focusedTab?.host ?? "-") themeTint=\(state.focusedTab?.themeTint != nil)")
+            reportContentInsets(state)
             capture(to: path)
         }
     }
@@ -91,6 +100,35 @@ enum WindowProbe {
             say("  covers point inside panel: \(CursorShield.coversPointer(inside, in: window))")
             say("  covers point over page:   \(CursorShield.coversPointer(outside, in: window))")
         }
+    }
+
+    /// The gap between the web content and each window edge, measured from the
+    /// pane's own registered frame. "Looks uneven" is worth a number.
+    @MainActor
+    static func reportContentInsets(_ state: BrowserState) {
+        guard let window = NSApp.windows.first(where: { $0.isVisible }),
+              let root = window.contentView else { return }
+        let panes = state.drag.registeredFrames.filter {
+            if case .pane = $0.key { return true }
+            return false
+        }
+        for (label, frame) in reportedFrames.sorted(by: { $0.key < $1.key }) {
+            say(String(format: "%@  %.0f,%.0f %.0fx%.0f", label,
+                       frame.minX, frame.minY, frame.width, frame.height))
+        }
+        guard let pane = panes.values.first else {
+            say("insets: no pane frame registered")
+            return
+        }
+        // Registered frames are in SwiftUI global space, which for this window
+        // matches the content view's flipped coordinates.
+        let bounds = root.bounds
+        say(String(format: "window %.0fx%.0f  pane %.0f,%.0f %.0fx%.0f",
+                   bounds.width, bounds.height, pane.minX, pane.minY,
+                   pane.width, pane.height))
+        say(String(format: "insets  left %.1f  right %.1f  top %.1f  bottom %.1f",
+                   pane.minX, bounds.width - pane.maxX,
+                   pane.minY, bounds.height - pane.maxY))
     }
 
     static func capture(to path: String) {

@@ -25,8 +25,8 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 
 | # | Item | Priority | Notes |
 |---|------|----------|-------|
-| 1 | **Guard against two Ark instances** | P2 | Found while testing: launching the same bundle id from two paths gives two processes sharing one `state.json`, and they clobber each other's saves. Backups now soften it, but the fix is a single-instance check that activates the existing window instead. |
-| 2 | **Slimmer top strip with the sidebar hidden** | P2 | Your screenshot: the traffic-light strip is 26pt plus an 8pt gutter above the page, so ~34pt of empty chrome. The floor is whatever clears the traffic lights (~22pt) — worth checking whether the gutter can be shared rather than stacked. |
+| 1 | **Pinch to zoom on a trackpad** | P2 | `WKWebView` has `allowsMagnification`, which handles the gesture itself — worth trying first, since it's one property. If its behaviour is wrong (it scales the whole layer rather than reflowing text), the alternative is a `magnify` gesture driving `pageZoom`, which reflows but needs its own ⌘0 reset and per-site memory. |
+| 2 | **Guard against two Ark instances** | P2 | Found while testing: launching the same bundle id from two paths gives two processes sharing one `state.json`, and they clobber each other's saves. Backups now soften it, but the fix is a single-instance check that activates the existing window instead. |
 | 3 | **Loading shown on the container, not as a bar** | P2 | Today it's a 1.5pt `ProgressView` hairline under the URL pill. Instead animate the pill itself — a travelling sheen or a filling border tinted from the page — so loading reads as the chrome breathing rather than a separate widget. `JellyWave` already does a travelling packet on a shape; same idea, driven by `tab.progress` instead of keystrokes. |
 | 4 | Cross-origin iframe autofill | P2 | Okta/Auth0/Stripe login widgets get no bridge — `forMainFrameOnly: true`. Turning it off runs the password script in every frame on every page, which is a real surface-area increase. Your call, not mine. |
 | 5 | Private window | P2 | Every tab shares one cookie store today. |
@@ -42,6 +42,8 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 
 *(Built and running in `Ark Staging.app`, not yet released.)*
 
+- **Even gutters around the page** — 8pt on every side, measured in both sidebar modes. The top is 30 with the sidebar hidden, which is the floor set by the traffic lights.
+- **Cleaner floating sidebar** — the empty 26pt band across its top is gone.
 - **Settings redesigned** — eight tabs, one per group; Passwords and 1Password merged; headers given an opaque surface. Section names and control counts verified identical to before the split.
 - **Close animations** — rows collapse out, bulk closes stagger by position.
 - **Audio indicator** — speaker badge that also pauses, driven by page events rather than polling.

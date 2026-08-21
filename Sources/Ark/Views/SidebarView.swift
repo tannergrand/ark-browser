@@ -3,6 +3,9 @@ import SwiftUI
 /// Arc-style sidebar: window controls and nav at the top, then a favorites icon
 /// row, a permanent pinned section with groups, and an ephemeral Today section.
 struct SidebarView: View {
+    /// True when the panel floats over the page. The traffic lights sit outside
+    /// it then, so its own chrome strip is 26pt of nothing.
+    var floating: Bool = false
     @Environment(BrowserState.self) private var state
     @State private var renamingID: UUID?
     @State private var draft = ""
@@ -31,11 +34,13 @@ struct SidebarView: View {
             // Leaves room for the traffic lights, which float over the sidebar,
             // and doubles as the title-bar substitute: drag to move the window,
             // double-click to zoom.
-            // Just space for the traffic lights now — the chatbot toggle moved
-            // down into the nav row, next to the shield, where the other
-            // page-level controls live.
-            WindowChromeArea()
-                .frame(height: 26)
+            // Just space for the traffic lights — but only when they're actually
+            // over the sidebar. Floating, they're above the panel entirely, and
+            // reserving room for them left an empty band across its top.
+            if !floating {
+                WindowChromeArea()
+                    .frame(height: 26)
+            }
 
             HStack(spacing: 2) {
                 navButton("chevron.left", enabled: state.focusedTab?.canGoBack ?? false,

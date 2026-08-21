@@ -76,6 +76,10 @@ final class TabDragCoordinator {
         regions[region] = rect
     }
 
+    /// Read-only view of the registered frames. Used by the window probe to
+    /// measure the gap around the page instead of eyeballing a screenshot.
+    var registeredFrames: [Region: CGRect] { regions }
+
     func clearFrame(for region: Region) {
         regions[region] = nil
     }

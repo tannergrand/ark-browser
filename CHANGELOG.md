@@ -38,6 +38,30 @@ them.
 
 ---
 
+## Unreleased (staging) — even gutters, cleaner hidden-sidebar layout
+
+### Fixed
+
+- **The gap around the page was uneven** — measured, not eyeballed: `left 10 ·
+  right 8 · bottom 10 · top 36`. Two causes. `PaneView` had a uniform
+  `.padding(2)`, which is right *between* panes and wrong on the outer edges,
+  where it stacked on the window's own gutter; it's now horizontal-only and only
+  when there's more than one pane. And the probe's first reading came from an
+  `onAppear`, which fires once — so a later window resize left the number stale by
+  roughly the amount I was trying to measure. Frames now report on change.
+  - Now, with the sidebar hidden: `left 8 · right 8 · bottom 8 · top 30`.
+  - With it pinned: `right 8 · top 8 · bottom 8`, and 8 between sidebar and page.
+  - **The top can't be 8.** The traffic lights sit at roughly y=6–20 and the page
+    starts at x=8, so it overlaps them horizontally — any less and the page slides
+    under the buttons. 22pt strip plus the 8pt gutter is the floor. Worth saying
+    plainly rather than quietly leaving it uneven.
+- **The floating sidebar had an empty band across its top.** It was reserving 26pt
+  for traffic lights that, while floating, sit *above* the panel rather than over
+  it. Dropped when floating, and the panel's other three margins now match the
+  page's gutter, so it reads as part of the same layout.
+
+---
+
 ## Unreleased (staging) — settings redesign, close animations, audio badge
 
 ### Settings, rebuilt

@@ -53,6 +53,16 @@ struct SplitContainer: View {
                     }
                 }
             }
+            .background {
+                GeometryReader { inner in
+                    Color.clear
+                        .onAppear { WindowProbe.report("splitContainer", inner.frame(in: .global)) }
+                        .onChange(of: inner.frame(in: .global)) { _, new in
+                            WindowProbe.report("splitContainer", new)
+                        }
+                }
+                .allowsHitTesting(false)
+            }
             // The guide — the only thing that moves while dragging a divider.
             .overlay(alignment: .topLeading) {
                 if let ratios = previewRatios, let index = previewIndex {
@@ -201,7 +211,10 @@ private struct PaneView: View {
         .contentShape(Rectangle())
         // Clicking anywhere in a pane focuses it, without stealing the click.
         .onTapGesture { state.focusedTabID = tab.id }
-        .padding(2)
+        // Only *between* panes. A uniform inset here added 2pt to the outer
+        // edges on top of the window's own gutter, which is half of why the gaps
+        // around the page measured 10 left and 6 right instead of 8 and 8.
+        .padding(.horizontal, paneCount > 1 ? 2 : 0)
     }
 
     /// Shades the half the new pane will occupy, so the split is previewed

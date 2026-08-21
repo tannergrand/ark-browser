@@ -52,8 +52,13 @@ struct RootView: View {
                         // toggle used to live here so hiding the sidebar didn't
                         // hide the feature, but a lone floating icon over the
                         // page looked like a stray control — ⌘⇧A does the job.
+                        // 22pt is the floor: the traffic lights sit roughly
+                        // y=6…20, and the page starts at x=8 so it overlaps them
+                        // horizontally. Any less and the page slides under the
+                        // buttons. This is why the top gap can't match the other
+                        // three at 8 — the lights have to live somewhere.
                         WindowChromeArea()
-                            .frame(height: 26)
+                            .frame(height: 22)
                             .frame(maxWidth: .infinity)
                     }
                     SplitContainer()
@@ -84,7 +89,7 @@ struct RootView: View {
             // Auto-hidden sidebar: floats above the content on left-edge hover.
             if state.sidebarFloating {
                 HStack(spacing: 0) {
-                    SidebarView()
+                    SidebarView(floating: true)
                         .frame(width: state.sidebarWidth)
                         // Takes the cursor for the panel's area, so the page
                         // underneath stops setting it — hovering a link behind
@@ -98,9 +103,12 @@ struct RootView: View {
                         .glassRim(cornerRadius: 14, enabled: state.glassChrome,
                                   intensity: state.glassIntensity)
                         .shadow(color: .black.opacity(0.35), radius: 26, x: 8)
-                        .padding(.top, 38)
-                        .padding(.bottom, 8)
-                        .padding(.leading, 8)
+                        // Clears the traffic lights, then matches the page's own
+                        // gutter on the other three sides so the panel reads as
+                        // part of the same layout.
+                        .padding(.top, 34)
+                        .padding(.bottom, Layout.contentInset)
+                        .padding(.leading, Layout.contentInset)
                         // Keep it open while the pointer is inside it, even if the
                         // edge monitor thinks we've moved past the reveal strip.
                         .onHover { inside in
