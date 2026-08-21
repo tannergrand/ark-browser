@@ -38,6 +38,35 @@ them.
 
 ---
 
+## Unreleased (staging) — cursor stops bleeding through floating panels
+
+Backlog Queue #1.
+
+### Fixed
+
+- **Hovering the floating sidebar showed the page's cursor** — a link underneath
+  turned the pointer into a hand, which announced that the panel was floating
+  over live content. AppKit resolves the cursor by hit-testing real `NSView`s,
+  and SwiftUI's drawn content isn't one, so the search fell through the sidebar
+  to the `WKWebView` behind it.
+- `CursorShield` claims the cursor for a panel's area via **both** paths WebKit
+  uses — a registered cursor rect (resolved by geometry and view order) and
+  `cursorUpdate` (the tracking-area path).
+- `hitTest` returns nil on purpose. A real `NSView` in a SwiftUI stack sits above
+  the drawn content and would otherwise swallow clicks on the tab rows — the
+  hazard that made an earlier attempt at this not worth shipping. Verified: the
+  shield sits at `8,38 240×506` with its tracking area registered, and a hit test
+  at its centre resolves to SwiftUI's container, not the shield.
+- Applied to the ⌘L command bar too, for the same reason: it dims a live page.
+
+### Not verified here
+
+The cursor itself can't be observed from a script — no synthetic hover without
+Accessibility permission. What's proven is the mechanism and that clicks still
+resolve past it. Whether the pointer stops changing needs a look.
+
+---
+
 ## Unreleased (staging) — faster command-bar suggestions
 
 Backlog Queue #1. Measured with a new `--bench-suggest`, on this Mac:

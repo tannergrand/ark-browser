@@ -23,7 +23,14 @@ enum WindowProbe {
                 NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             }
         }
+        if ProcessInfo.processInfo.environment["ARK_PROBE_REVEAL_SIDEBAR"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + max(1, delay - 3)) {
+                state.sidebarAutoHide = true
+                state.revealSidebar()
+            }
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            reportCursorShields()
             // State first: a colour reading is meaningless without knowing what
             // the app thought it was drawing.
             say("style=\(state.sidebarStyle.rawValue) strength=\(state.chromeTintStrength)")
@@ -38,6 +45,31 @@ enum WindowProbe {
             }
             say("focused=\(state.focusedTab?.host ?? "-") themeTint=\(state.focusedTab?.themeTint != nil)")
             capture(to: path)
+        }
+    }
+
+    /// What the cursor shields are doing, since the cursor itself can't be
+    /// observed from a script. Reports presence, geometry, and — the part that
+    /// matters — that they stay invisible to hit testing, so clicks still reach
+    /// the rows drawn above them.
+    static func reportCursorShields() {
+        guard let window = NSApp.windows.first(where: { $0.isVisible }),
+              let root = window.contentView else { return }
+        var found: [NSView] = []
+        func walk(_ view: NSView) {
+            if view is CursorShield.Shield { found.append(view) }
+            view.subviews.forEach(walk)
+        }
+        walk(root)
+        say("cursor shields: \(found.count)")
+        for shield in found {
+            let frame = shield.convert(shield.bounds, to: root)
+            let centre = NSPoint(x: frame.midX, y: frame.midY)
+            let hit = root.hitTest(centre)
+            say(String(format: "  frame %.0f,%.0f %.0fx%.0f  hitTest→%@",
+                       frame.minX, frame.minY, frame.width, frame.height,
+                       hit.map { String(describing: type(of: $0)) } ?? "nil"))
+            say("  cursor rect registered: \(!shield.trackingAreas.isEmpty)")
         }
     }
 

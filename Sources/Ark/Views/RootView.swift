@@ -86,6 +86,10 @@ struct RootView: View {
                 HStack(spacing: 0) {
                     SidebarView()
                         .frame(width: state.sidebarWidth)
+                        // Takes the cursor for the panel's area, so the page
+                        // underneath stops setting it — hovering a link behind
+                        // the floating sidebar turned the pointer into a hand.
+                        .background(CursorShield())
                         .background(ChromeTint(tint: state.chromeTint,
                                                strength: state.chromeTintStrength))
                         .glassSurface(.chrome,
@@ -233,6 +237,10 @@ struct RootView: View {
                             }
                         }
                         .onTapGesture { state.closeCommandBar(committed: false) }
+                        // Same reason as the floating sidebar: ⌘L dims a live
+                        // page, and without this the pointer still reacts to
+                        // links behind the dim.
+                        .background(CursorShield())
                         VStack {
                             CommandBar().padding(.top, 120).jellyAppear()
                             Spacer()

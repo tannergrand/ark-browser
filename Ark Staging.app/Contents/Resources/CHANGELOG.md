@@ -38,6 +38,76 @@ them.
 
 ---
 
+## Unreleased (staging) — cursor stops bleeding through floating panels
+
+Backlog Queue #1.
+
+### Fixed
+
+- **Hovering the floating sidebar showed the page's cursor** — a link underneath
+  turned the pointer into a hand, which announced that the panel was floating
+  over live content. AppKit resolves the cursor by hit-testing real `NSView`s,
+  and SwiftUI's drawn content isn't one, so the search fell through the sidebar
+  to the `WKWebView` behind it.
+- `CursorShield` claims the cursor for a panel's area via **both** paths WebKit
+  uses — a registered cursor rect (resolved by geometry and view order) and
+  `cursorUpdate` (the tracking-area path).
+- `hitTest` returns nil on purpose. A real `NSView` in a SwiftUI stack sits above
+  the drawn content and would otherwise swallow clicks on the tab rows — the
+  hazard that made an earlier attempt at this not worth shipping. Verified: the
+  shield sits at `8,38 240×506` with its tracking area registered, and a hit test
+  at its centre resolves to SwiftUI's container, not the shield.
+- Applied to the ⌘L command bar too, for the same reason: it dims a live page.
+
+### Not verified here
+
+The cursor itself can't be observed from a script — no synthetic hover without
+Accessibility permission. What's proven is the mechanism and that clicks still
+resolve past it. Whether the pointer stops changing needs a look.
+
+---
+
+## Unreleased (staging) — faster command-bar suggestions
+
+Backlog Queue #1. Measured with a new `--bench-suggest`, on this Mac:
+
+| | per query |
+|---|---|
+| first call in a process | ~840 ms |
+| later calls, new session each time | ~310 ms (mean 489 with the first) |
+| **reusing one session** | **340 ms** |
+| repeat of an answered query | **1 ms** |
+| plus the old debounce | **+400 ms flat** |
+
+### Changed
+
+- One shared `LanguageModelSession`, reused, and `prewarm()` called when the
+  command bar opens — so the first keystroke no longer pays the ~500 ms setup gap.
+  A failed or cancelled turn drops the session, so the next keystroke starts
+  clean rather than inheriting the failure.
+- Results cached by query, bounded at 40 entries. Typing `githu` and deleting
+  back to `gith` no longer re-asks a model that takes a third of a second.
+- Debounce 400 ms → 180 ms, and the minimum query length 4 → 3.
+- Every request is bounded at 2.5 s and dropped if it misses. A suggestion that
+  lands after you have pressed Return rewrites a decision you have already made.
+
+### Measured and rejected
+
+- **Capping output to one line and 40 tokens was slower, not faster** — 400 ms
+  against 340 ms. Left off. It's kept in the bench because a number that
+  contradicts the intuition is worth being able to reproduce.
+
+### Two harness bugs found on the way
+
+- The first bench blocked the main thread on a semaphore while the suggestion
+  path hopped to the main actor — a deadlock that looked exactly like a model
+  taking three minutes to answer. Fixed by spinning the main run loop.
+- The second reused one query set across all three passes, so passes two and
+  three were measuring the cache I'd just added and reporting 1 ms as if it were
+  the model. Distinct sets per pass.
+
+---
+
 ## v0.28.4 — Staging channel (2026-08-20)
 
 ### Added
