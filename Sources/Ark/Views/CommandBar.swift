@@ -53,6 +53,9 @@ struct CommandBar: View {
             // chain; doing it synchronously in onAppear silently no-ops, which
             // is why a new tab used to open with the field unfocused.
             NSApp.activate(ignoringOtherApps: true)
+            // Load the model while the field is getting focus, so the first
+            // keystroke isn't the one that pays for setup.
+            OnDeviceSuggestions.prewarm()
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(40))
                 focused = true
@@ -315,12 +318,15 @@ struct CommandBar: View {
         aiTask?.cancel()
         aiRows = []
         let trimmed = query.trimmingCharacters(in: .whitespaces)
-        guard state.aiSuggestionsEnabled, trimmed.count >= 4, !looksLikeURL else {
+        guard state.aiSuggestionsEnabled, trimmed.count >= 3, !looksLikeURL else {
             aiTask = nil
             return
         }
         aiTask = Task {
-            try? await Task.sleep(for: .milliseconds(400))
+            // 400 ms was a third of a second of nothing happening before the
+            // model even started. Cached queries return instantly, so a shorter
+            // wait costs little.
+            try? await Task.sleep(for: .milliseconds(180))
             guard !Task.isCancelled else { return }
             let results = await state.suggestions(forQuery: trimmed)
             guard !Task.isCancelled else { return }

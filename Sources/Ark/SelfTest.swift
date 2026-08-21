@@ -8,12 +8,95 @@ import UniformTypeIdentifiers
 /// exits. Exists because the app's UI can't be driven headlessly, so this is how
 /// the vault, CSV import, URL resolution, and blocker rules get verified.
 enum SelfTest {
+    /// `--bench-suggest` times the on-device completion path.
+    ///
+    /// "Suggestions feel slow" has three possible causes — the debounce, session
+    /// setup, and generation — and they need separating before any of them is
+    /// worth changing. This measures each.
+    static func runSuggestionBench() {
+        // Spins the main run loop rather than blocking on a semaphore. The
+        // suggestion path hops to the main actor (shared session, cache), so a
+        // parked main thread deadlocks it — which is exactly what happened here
+        // and looked for all the world like a slow model.
+        var finished = false
+        Task { @MainActor in
+            say("available: \(OnDeviceSuggestions.isAvailable)")
+            guard OnDeviceSuggestions.isAvailable else { finished = true; return }
+            // A distinct set per pass. Sharing one set meant passes two and
+            // three were measuring the cache I had just added, and reporting
+            // 1 ms as if it were the model.
+            let cold = ["githu", "life church", "swift concur"]
+            let warm = ["stripe doc", "swiftui gri", "bank stat"]
+            let capped = ["notion tem", "figma comm", "postgres ind"]
+
+            say("--- cold: a new session per query (what it does today)")
+            var coldTotal = 0.0
+            for query in cold {
+                let start = Date()
+                let rows = await OnDeviceSuggestions.suggest(
+                    query: query, searchBase: "https://duckduckgo.com/")
+                let elapsed = Date().timeIntervalSince(start) * 1000
+                coldTotal += elapsed
+                say(String(format: "  %-14@ %6.0f ms  (%d rows)", query as NSString,
+                           elapsed, rows.count))
+            }
+            say(String(format: "  mean %.0f ms", coldTotal / Double(cold.count)))
+
+            say("--- warm: one shared session, reused")
+            OnDeviceSuggestions.prewarm()
+            var warmTotal = 0.0
+            for query in warm {
+                let start = Date()
+                let rows = await OnDeviceSuggestions.suggest(
+                    query: query, searchBase: "https://duckduckgo.com/", reuseSession: true)
+                let elapsed = Date().timeIntervalSince(start) * 1000
+                warmTotal += elapsed
+                say(String(format: "  %-14@ %6.0f ms  (%d rows)", query as NSString,
+                           elapsed, rows.count))
+            }
+            say(String(format: "  mean %.0f ms", warmTotal / Double(warm.count)))
+            say("--- warm + capped output (one suggestion, 40-token ceiling)")
+            var cappedTotal = 0.0
+            for query in capped {
+                let start = Date()
+                let rows = await OnDeviceSuggestions.suggest(
+                    query: query, searchBase: "https://duckduckgo.com/",
+                    reuseSession: true, fast: true)
+                let elapsed = Date().timeIntervalSince(start) * 1000
+                cappedTotal += elapsed
+                say(String(format: "  %-14@ %6.0f ms  (%d rows)", query as NSString,
+                           elapsed, rows.count))
+            }
+            say(String(format: "  mean %.0f ms", cappedTotal / Double(capped.count)))
+            // And one repeat, to price the cache honestly.
+            let cacheStart = Date()
+            _ = await OnDeviceSuggestions.suggest(query: cold[0],
+                                                  searchBase: "https://duckduckgo.com/")
+            let cacheHit = Date().timeIntervalSince(cacheStart) * 1000
+            say(String(format: "--- repeat of a query already answered: %.0f ms", cacheHit))
+            say(String(format: "cold %.0f · warm %.0f · capped %.0f · cached %.0f ms",
+                       coldTotal / Double(cold.count),
+                       warmTotal / Double(warm.count),
+                       cappedTotal / Double(capped.count), cacheHit))
+            finished = true
+        }
+        let deadline = Date().addingTimeInterval(120)
+        while !finished, Date() < deadline {
+            _ = RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.1))
+        }
+        if !finished { say("bench did not finish inside 120 s") }
+    }
+
     /// Unbuffered, so output survives a killed probe.
     private static func say(_ message: String) {
         FileHandle.standardError.write((message + "\n").data(using: .utf8)!)
     }
 
     static func runIfRequested() {
+        if CommandLine.arguments.contains("--bench-suggest") {
+            runSuggestionBench()
+            exit(0)
+        }
         guard CommandLine.arguments.contains("--selftest") else { return }
         var failures = 0
 
@@ -723,6 +806,18 @@ enum SelfTest {
                   !AppPaths.isStaging || Updater().automaticallyChecks == false
               },
               "a release download would replace the build under test")
+
+        // Suggestions: the parser and the budget. Timings live in
+        // --bench-suggest; what matters here is that a slow model can't hang the
+        // command bar.
+        check("a suggestion request is bounded",
+              OnDeviceSuggestions.budget <= .seconds(3),
+              "a suggestion arriving after Return rewrites a decision already made")
+        check("suggestion parsing drops a line with no resolvable host",
+              OnDeviceSuggestions.parse("GitHub|not a url\nDocs|https://docs.example")
+                  .allSatisfy { URL(string: $0.url)?.host != nil })
+        check("suggestion parsing survives numbering and fences",
+              !OnDeviceSuggestions.parse("```\n1. GitHub|https://github.com\n```").isEmpty)
 
         check("tint scales with intensity",
               GlassRamp.tintOpacity(1.0) > GlassRamp.tintOpacity(0.0),

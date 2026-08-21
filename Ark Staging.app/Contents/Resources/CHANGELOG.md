@@ -38,6 +38,37 @@ them.
 
 ---
 
+## v0.28.4 — Staging channel (2026-08-20)
+
+### Added
+
+- **A staging channel.** `tools/stage.sh` builds and installs `Ark Staging.app`
+  beside the real one: separate bundle identifier, separate `Ark Staging` support
+  folder, separate WebKit data store. Verified by launching staging alone and
+  confirming production's `state.json` and its website data were untouched.
+  - Isolation is the entire point. A staging build sharing production's
+    `state.json` could lose your real tabs to the bug you were hunting, and
+    sharing the WebKit store would put your logged-in sessions in the blast
+    radius.
+  - Paths now derive from the bundle (`AppPaths`), so no path can drift out of
+    step with the identifier. Five checks cover it, and they run in *both*
+    builds — the production run asserts it resolves to `Ark`, the staging run to
+    `Ark Staging`.
+  - Staging **never** self-updates: a release download would replace the build
+    under test with production. Settings shows a STAGING badge, and the version
+    reads `0.28.3-staging`.
+  - `Migration` is skipped in staging — pulling a Drift install into it would
+    defeat having a separate channel.
+
+### Fixed
+
+- `tools/release.sh` tagged and released from *this* directory, which lives inside
+  claude-workspace — so an Ark tag, and possibly a GitHub release, could have
+  landed on the wrong repository. It now works from the publish mirror and passes
+  `gh` an explicit `--repo`, and it refuses to release if the self-test fails.
+
+---
+
 ## v0.28.3 — Darker, simpler icon (2026-08-20)
 
 ### Changed
