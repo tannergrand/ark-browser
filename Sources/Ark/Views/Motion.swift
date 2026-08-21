@@ -70,6 +70,19 @@ enum Motion {
                 : .spring(response: 0.40, dampingFraction: 0.55)
     }
 
+    /// Arriving and leaving. A row that vanishes instantly gives no sense of
+    /// where it went; squashing flat as it fades reads as the row collapsing out
+    /// of the list, and makes a bulk close legible.
+    static var leave: AnyTransition {
+        reduced
+            ? .opacity
+            : .asymmetric(
+                insertion: .modifier(active: JellyStretch(amount: 1),
+                                     identity: JellyStretch(amount: 0)),
+                removal: .modifier(active: JellyCollapse(amount: 1),
+                                   identity: JellyCollapse(amount: 0)))
+    }
+
     /// Squash-and-stretch entrance. Under Reduce Motion it becomes a plain fade.
     ///
     /// The jelly read comes from the scale being *anisotropic* — wider than it
@@ -82,6 +95,23 @@ enum Motion {
                 insertion: .modifier(active: JellyStretch(amount: 1),
                                      identity: JellyStretch(amount: 0)),
                 removal: .opacity)
+    }
+}
+
+/// Collapsing out: flattens vertically, pulls in slightly, and fades. Vertical
+/// scale rather than a height change, so no layout pass runs per frame.
+struct JellyCollapse: ViewModifier, Animatable {
+    var amount: Double
+
+    var animatableData: Double {
+        get { amount }
+        set { amount = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(x: 1 - amount * 0.06, y: 1 - amount * 0.75, anchor: .top)
+            .opacity(1 - amount)
     }
 }
 

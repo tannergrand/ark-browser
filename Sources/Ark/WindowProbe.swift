@@ -19,8 +19,14 @@ enum WindowProbe {
         // Optionally open Settings first, so the probe can look at a panel the
         // shell can't click on.
         if ProcessInfo.processInfo.environment["ARK_PROBE_SETTINGS"] == "1" {
-            DispatchQueue.main.asyncAfter(deadline: .now() + max(1, delay - 2)) {
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + max(1, delay - 3)) {
+                NSApp.activate(ignoringOtherApps: true)
+                // Both spellings: the selector was renamed in macOS 13, and
+                // sendAction silently does nothing for the one that doesn't
+                // exist — which is why the first attempt captured no panel.
+                for name in ["showSettingsWindow:", "showPreferencesWindow:"] {
+                    NSApp.sendAction(Selector((name)), to: nil, from: nil)
+                }
             }
         }
         // Revealing three seconds early let the edge monitor hide the panel again

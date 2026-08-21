@@ -211,7 +211,7 @@ struct SidebarView: View {
         VStack(alignment: .leading, spacing: 1) {
             ForEach(state.pinned.filter(\.isGroup)) { item in
                 NodeRow(item: item, depth: 0, renamingID: $renamingID, draft: $draft)
-                    .transition(Motion.appear)
+                    .transition(Motion.leave)
             }
         }
         .padding(.top, 2)
@@ -304,9 +304,14 @@ struct SidebarView: View {
 
             // A tree, so groups can live in Today without being pinned.
             // The id list drives the reorder animation.
-            ForEach(state.visibleTodayItems) { item in
+            ForEach(Array(state.visibleTodayItems.enumerated()), id: \.element.id) { index, item in
                 NodeRow(item: item, depth: 0, renamingID: $renamingID, draft: $draft)
-                    .transition(Motion.appear)
+                    .transition(Motion.leave)
+                    // Staggered by position, so closing four tabs reads as four
+                    // rows leaving rather than the list jumping. Capped, because
+                    // a fortieth row shouldn't wait a second and a half to go.
+                    .animation(Motion.exit.delay(min(Double(index), 8) * 0.035),
+                               value: state.visibleTodayItems.count)
             }
             if state.draggedTabGroupSection == .today {
                 RootDropStrip(placement: .today, label: "Drop here to leave the group")
@@ -590,6 +595,21 @@ private struct TabRow: View {
                 ProgressView().controlSize(.small).scaleEffect(0.55)
                     .tint(state.chromeTint ?? .accentColor)
                     .frame(width: 14, height: 14)
+            } else if tab.isPlayingAudio {
+                // Replaces the favicon rather than crowding beside it: at 15pt
+                // there is room for one glyph, and "this is making noise" is the
+                // more urgent of the two.
+                Button {
+                    Task { await tab.pauseMedia() }
+                } label: {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .font(.system(size: 10))
+                        .frame(width: 15, height: 15)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(JellyPress(scale: 0.85))
+                .foregroundStyle(.tint)
+                .help("Playing audio — click to pause")
             } else if let emoji = tab.emoji {
                 Text(emoji)
                     .font(.system(size: 13))
@@ -1064,6 +1084,15 @@ private struct PinnedIcon: View {
             } else {
                 TabIcon(tab: tab, size: min(height * 0.62, 22))
                     .opacity(tab.isSnoozed ? 0.45 : 1)
+            }
+            if tab.isPlayingAudio {
+                Image(systemName: "speaker.wave.2.fill")
+                    .font(.system(size: max(6, height * 0.24)))
+                    .foregroundStyle(.tint)
+                    .padding(1)
+                    .background(.background, in: Circle())
+                    .frame(width: width * 0.9, height: height * 0.8,
+                           alignment: .bottomTrailing)
             }
             if tab.isSnoozed {
                 Image(systemName: "moon.zzz.fill")

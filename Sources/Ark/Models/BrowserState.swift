@@ -343,7 +343,11 @@ final class BrowserState {
     func closeSelected() {
         let doomed = selectedTabsInOrder
         clearSelection()
-        for tab in doomed { close(tab) }
+        // One animation around the whole set, so the rows leave together with
+        // their per-row stagger instead of each close animating separately.
+        withAnimation(Motion.settle) {
+            for tab in doomed { close(tab) }
+        }
     }
 
     /// One new group holding everything selected, in sidebar order.

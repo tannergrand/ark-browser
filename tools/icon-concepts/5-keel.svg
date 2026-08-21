@@ -4,6 +4,6 @@
     <stop offset="0" stop-color="#6B5BFF"/><stop offset="0.6" stop-color="#7C3BE0"/><stop offset="1" stop-color="#FF6B5E"/>
   </linearGradient>
 </defs>
-<path d="M296 398 L728 398 Q512 700 296 398 Z" fill="url(#hull)"/>
-<path d="M258 632 Q380 596 512 620 T766 632" fill="none" stroke="#8B93A7"
-      stroke-width="30" stroke-linecap="round"/></svg>
+<path d="M316 386 L708 386 Q512 726 316 386 Z" fill="url(#hull)"/>
+<path d="M280 692 Q396 660 512 680 T744 692" fill="none" stroke="#8B93A7"
+      stroke-width="26" stroke-linecap="round"/></svg>

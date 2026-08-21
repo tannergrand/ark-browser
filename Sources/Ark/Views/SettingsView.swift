@@ -1,44 +1,70 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// Settings, one tab per group.
+///
+/// It used to be four tabs where "General" held default-browser, appearance,
+/// search, tabs, blocking *and* updates — a dumping ground you had to read
+/// top-to-bottom to find anything. Splitting by subject means the tab bar is the
+/// index, which is what a tab bar is for.
+///
+/// Passwords and 1Password are one tab: they are two halves of the same
+/// question, and choosing between two tabs to find out where a login lives is a
+/// decision nobody should have to make.
 struct SettingsView: View {
     @Environment(BrowserState.self) private var state
 
     /// `.tabItem` is the pre-macOS-15 spelling, and on 26 it produced a tab bar
-    /// of seven identical "General" gears — the labels stopped binding to their
-    /// tabs. `Tab` is the current API and gets it right; the old path stays for
-    /// the macOS 14 floor.
+    /// of identical labels — the labels stopped binding to their tabs. `Tab` is
+    /// the current API and gets it right; the old path stays for the macOS 14
+    /// floor.
     var body: some View {
-        // An opaque backing. The settings window inherits the app's vibrancy, and
-        // over a bright page the tab bar's labels were washed out to the point of
-        // being unreadable — the screenshot that prompted this showed a row of
-        // ghost text.
         Group {
             if #available(macOS 15.0, *) {
                 TabView {
-                    Tab("General", systemImage: "gearshape") { GeneralSettings() }
-                    Tab("Passwords", systemImage: "key.fill") { PasswordSettings() }
-                    Tab("1Password", systemImage: "lock.shield") { OnePasswordSettings() }
-                    Tab("AI", systemImage: "sparkles") { AISettings() }
+                    Tab("General", systemImage: "gearshape") { GeneralPane() }
+                    Tab("Appearance", systemImage: "paintbrush") { AppearancePane() }
+                    Tab("Tabs", systemImage: "square.on.square") { TabsPane() }
+                    Tab("Privacy", systemImage: "hand.raised") { PrivacyPane() }
+                    Tab("Passwords", systemImage: "key.fill") { PasswordsPane() }
+                    Tab("AI", systemImage: "sparkles") { AIPane() }
+                    Tab("Backups", systemImage: "clock.arrow.circlepath") { BackupsPane() }
+                    Tab("Updates", systemImage: "arrow.down.circle") { UpdatesPane() }
                 }
             } else {
                 TabView {
-                    GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
-                    PasswordSettings().tabItem { Label("Passwords", systemImage: "key.fill") }
-                    OnePasswordSettings().tabItem { Label("1Password", systemImage: "lock.shield") }
-                    AISettings().tabItem { Label("AI", systemImage: "sparkles") }
+                    GeneralPane().tabItem { Label("General", systemImage: "gearshape") }
+                    AppearancePane().tabItem { Label("Appearance", systemImage: "paintbrush") }
+                    TabsPane().tabItem { Label("Tabs", systemImage: "square.on.square") }
+                    PrivacyPane().tabItem { Label("Privacy", systemImage: "hand.raised") }
+                    PasswordsPane().tabItem { Label("Passwords", systemImage: "key.fill") }
+                    AIPane().tabItem { Label("AI", systemImage: "sparkles") }
+                    BackupsPane().tabItem { Label("Backups", systemImage: "clock.arrow.circlepath") }
+                    UpdatesPane().tabItem { Label("Updates", systemImage: "arrow.down.circle") }
                 }
             }
         }
-        // 420pt tall clipped the 1Password pane's own button off the bottom.
-        .frame(width: 620, height: 580)
-        .background(Color(nsColor: .windowBackgroundColor).ignoresSafeArea())
+        .frame(width: 620, height: 560)
+        .background(SettingsBackdrop())
     }
 }
 
-// MARK: - General
+/// An opaque backing for the window and its section headers.
+///
+/// The window inherits the app's vibrancy, so over a bright page the headers and
+/// the tab bar washed out to ghost text. `Form`'s own scroll background is hidden
+/// and replaced with this, which is also what gives the headers something to sit
+/// on rather than floating over whatever is behind the window.
+struct SettingsBackdrop: View {
+    var body: some View {
+        Color(nsColor: .windowBackgroundColor)
+            .overlay(Color.primary.opacity(0.03))
+            .ignoresSafeArea()
+    }
+}
 
-private struct GeneralSettings: View {
+private struct GeneralPane: View {
     @Environment(BrowserState.self) private var state
     @State private var browserStatus: String?
     @State private var asking = false
@@ -77,7 +103,42 @@ private struct GeneralSettings: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            Section("Search") {
+                Picker("Search engine", selection: Binding(
+                    get: { SearchEngine.current },
+                    set: { SearchEngine.current = $0 }
+                )) {
+                    ForEach(SearchEngine.allCases) { engine in
+                        Text(engine.label).tag(engine)
+                    }
+                }
+                Text("Used for anything typed in the command bar that isn't a URL.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(SettingsBackdrop())
+    }
+}
 
+private struct AppearancePane: View {
+    @Environment(BrowserState.self) private var state
+
+    /// One explanation per mode, so the slider's meaning is never ambiguous.
+    private var sidebarStyleNote: String {
+        switch state.sidebarStyle {
+        case .glass:
+            return "Glass only, no colour. The slider drives rim highlight and whether small controls get the pointer-tracking variant — the two things glass actually exposes, since the effect itself has no intensity parameter."
+        case .pageTint:
+            return "Ranks every colour the page exposes — theme colour, header and body backgrounds, accent colour, link and button colours — and takes the most usable one, discounting very dark shades because their hue is too thin to survive being lightened. Blank tabs use their own colour field. Cross-fades when you switch pages."
+        case .custom:
+            return "One fixed colour over the glass, ignoring the page. The slider sets how strongly it shows."
+        }
+    }
+
+    var body: some View {
+        Form {
             Section("Appearance") {
                 Toggle("Liquid Glass chrome", isOn: Binding(
                     get: { state.glassChrome },
@@ -131,20 +192,18 @@ private struct GeneralSettings: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(SettingsBackdrop())
+    }
+}
 
-            Section("Search") {
-                Picker("Search engine", selection: Binding(
-                    get: { SearchEngine.current },
-                    set: { SearchEngine.current = $0 }
-                )) {
-                    ForEach(SearchEngine.allCases) { engine in
-                        Text(engine.label).tag(engine)
-                    }
-                }
-                Text("Used for anything typed in the command bar that isn't a URL.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
+private struct TabsPane: View {
+    @Environment(BrowserState.self) private var state
 
+    var body: some View {
+        Form {
             Section("Tabs") {
                 Picker("Archive Today tabs after", selection: Binding(
                     get: { state.archiveHours },
@@ -158,7 +217,44 @@ private struct GeneralSettings: View {
                 Text("Pinned tabs and favorites are never archived.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Memory") {
+                Picker("Snooze idle tabs after", selection: Binding(
+                    get: { state.snoozeMinutes },
+                    set: { state.snoozeMinutes = $0; state.save() }
+                )) {
+                    Text("Never").tag(0.0)
+                    Text("5 minutes").tag(5.0)
+                    Text("20 minutes").tag(20.0)
+                    Text("1 hour").tag(60.0)
+                    Text("3 hours").tag(180.0)
+                }
+                Text("WebKit gives every tab its own process, and a page's DOM and JavaScript heap are most of what it holds. Snoozing frees the page and keeps the tab: scroll position and back/forward history are preserved, and clicking the tab restores it. Tabs on screen are never snoozed, nor is anything playing audio or video. Ark also frees every background page immediately when macOS reports memory pressure.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Text(state.snoozedCount == 0
+                         ? "No tabs snoozed right now."
+                         : "\(state.snoozedCount) tab\(state.snoozedCount == 1 ? "" : "s") snoozed.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Snooze Background Tabs Now") {
+                        Task { await state.snoozeAllBackgroundTabs() }
+                    }
+                    .controlSize(.small)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(SettingsBackdrop())
+    }
+}
 
+private struct PrivacyPane: View {
+    @Environment(BrowserState.self) private var state
+
+    var body: some View {
+        Form {
             Section("Blocking") {
                 Toggle("Block ads and trackers", isOn: Binding(
                     get: { state.blockingEnabled },
@@ -186,42 +282,120 @@ private struct GeneralSettings: View {
                 }
             }
         }
-            Section("Updates") {
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(SettingsBackdrop())
+    }
+}
+
+private struct AIPane: View {
+    @Environment(BrowserState.self) private var state
+    @State private var keyDraft = ""
+    @State private var saved = false
+
+    var body: some View {
+        Form {
+            Section("Anthropic API key") {
+                SecureField("sk-ant-…", text: $keyDraft)
                 HStack {
-                    Text("Ark \(Updater.currentVersion)")
-                    if AppPaths.isStaging {
-                        Text("STAGING")
-                            .font(.system(size: 9, weight: .bold))
-                            .padding(.horizontal, 5).padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.22), in: Capsule())
+                    Button("Save to Keychain") {
+                        Keychain.writeAPIKey(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines))
+                        keyDraft = ""
+                        saved = true
+                    }
+                    .disabled(keyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                    Button("Remove") {
+                        Keychain.deleteAPIKey()
+                        saved = false
                     }
                     Spacer()
-                    Button("Check Now") {
-                        Task { await state.updater.check(userInitiated: true) }
+                    if ClaudeClient.hasKey {
+                        Label("Key found", systemImage: "checkmark.circle.fill")
+                            .font(.caption).foregroundStyle(.green)
+                    } else {
+                        Label("No key", systemImage: "exclamationmark.circle")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
-                    .controlSize(.small)
-                    .disabled(AppPaths.isStaging)
                 }
-                if AppPaths.isStaging {
-                    Text("This is the staging copy — separate identifier, separate data folder, separate cookies. It updates when you run `tools/stage.sh`, not from the release feed, so a release can't replace what you're testing.")
-                        .font(.caption).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                Text("Stored in your local keychain, not synced, and never written to disk by Ark. ANTHROPIC_API_KEY in the environment takes precedence.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Tab grouping") {
+                Picker("AI engine (grouping and suggestions)", selection: Binding(
+                    get: { state.groupingEngine },
+                    set: { state.groupingEngine = $0; state.save() }
+                )) {
+                    ForEach(GroupingEngine.selectable) { engine in
+                        Text(engine.label).tag(engine)
+                    }
                 }
-                Toggle("Check for updates at launch", isOn: Binding(
-                    get: { state.updater.automaticallyChecks },
-                    set: { state.updater.automaticallyChecks = $0 }
-                ))
-                updateStatus
-                Text("Releases come from github.com/\(Updater.repository). The download must be served by GitHub over HTTPS, and if the release notes publish a SHA-256 the archive has to match it or the update is refused. Nothing installs without a click.")
+
+                LabeledContent("Apple Intelligence") {
+                    if OnDeviceOrganizer.availability.isAvailable {
+                        Label("Ready", systemImage: "checkmark.circle.fill")
+                            .font(.caption).foregroundStyle(.green)
+                    } else {
+                        Label("Unavailable", systemImage: "exclamationmark.circle")
+                            .font(.caption).foregroundStyle(.orange)
+                    }
+                }
+                Text(OnDeviceOrganizer.availability.explanation)
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Ark is not notarised by Apple. Updates replace the app bundle in place, which is a real trust decision — it is why this is opt-in and never silent.")
+
+                LabeledContent("Will use") {
+                    Text(state.effectiveGroupingEngine == .appleIntelligence
+                         ? "Apple Intelligence — on-device"
+                         : "Claude — sends titles and hostnames")
+                        .font(.caption)
+                        .foregroundStyle(state.effectiveGroupingEngine == .appleIntelligence
+                                         ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
+                }
+
+                Text("On-device grouping is private and free: no tab titles or hostnames leave this Mac, and it works offline. It handles up to \(TabOrganizer.onDeviceTabCap) tabs at a time. The Claude path is the fallback when Apple Intelligence is off or unsupported — it sends titles and hostnames only, never page content.")
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
+            Section("Command bar") {
+                Toggle("AI suggestions while typing", isOn: Binding(
+                    get: { state.aiSuggestionsEnabled },
+                    set: { state.aiSuggestionsEnabled = $0; state.save() }
+                ))
+                Text("Uses the engine selected under Tab grouping. On Apple Intelligence the query never leaves your Mac; on Claude it is sent to the API after a 400 ms pause. Either way, local history and bookmark matches appear instantly and never leave your Mac.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Page assistant") {
+                Text("Uses \(ClaudeClient.model). Page text is sent as context when you ask a question, and is labeled as untrusted data in the prompt.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(SettingsBackdrop())
     }
+}
+
+private struct BackupsPane: View {
+    @Environment(BrowserState.self) private var state
+
+    var body: some View {
+        Form {
+            Section("Backups") {
+                BackupList()
+                Text("A copy of the tab list is kept before each save, at most one every ten minutes — and always when the tab count drops by three or more, which is the shape of the failure this exists for. The newest \(StateBackups.keep) are kept. Restoring copies the current file aside first, then needs a relaunch.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(SettingsBackdrop())
+    }
+}
+
+private struct UpdatesPane: View {
+    @Environment(BrowserState.self) private var state
 
     @ViewBuilder
     private var updateStatus: some View {
@@ -270,20 +444,67 @@ private struct GeneralSettings: View {
         }
     }
 
-    /// One explanation per mode, so the slider's meaning is never ambiguous.
-    private var sidebarStyleNote: String {
-        switch state.sidebarStyle {
-        case .glass:
-            return "Glass only, no colour. The slider drives rim highlight and whether small controls get the pointer-tracking variant — the two things glass actually exposes, since the effect itself has no intensity parameter."
-        case .pageTint:
-            return "Ranks every colour the page exposes — theme colour, header and body backgrounds, accent colour, link and button colours — and takes the most usable one, discounting very dark shades because their hue is too thin to survive being lightened. Blank tabs use their own colour field. Cross-fades when you switch pages."
-        case .custom:
-            return "One fixed colour over the glass, ignoring the page. The slider sets how strongly it shows."
+    var body: some View {
+        Form {
+            Section("Updates") {
+                HStack {
+                    Text("Ark \(Updater.currentVersion)")
+                    if AppPaths.isStaging {
+                        Text("STAGING")
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(.horizontal, 5).padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.22), in: Capsule())
+                    }
+                    Spacer()
+                    Button("Check Now") {
+                        Task { await state.updater.check(userInitiated: true) }
+                    }
+                    .controlSize(.small)
+                    .disabled(AppPaths.isStaging)
+                }
+                if AppPaths.isStaging {
+                    Text("This is the staging copy — separate identifier, separate data folder, separate cookies. It updates when you run `tools/stage.sh`, not from the release feed, so a release can't replace what you're testing.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Toggle("Check for updates at launch", isOn: Binding(
+                    get: { state.updater.automaticallyChecks },
+                    set: { state.updater.automaticallyChecks = $0 }
+                ))
+                updateStatus
+                Text("Releases come from github.com/\(Updater.repository). The download must be served by GitHub over HTTPS, and if the release notes publish a SHA-256 the archive has to match it or the update is refused. Nothing installs without a click.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Ark is not notarised by Apple. Updates replace the app bundle in place, which is a real trust decision — it is why this is opt-in and never silent.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(SettingsBackdrop())
     }
 }
 
-// MARK: - Passwords
+/// Both password sources in one tab. The vault list is the thing you came for, so
+/// it leads; the 1Password connection sits under it as a disclosure.
+private struct PasswordsPane: View {
+    @State private var showingOnePassword = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PasswordSettings()
+            Divider()
+            DisclosureGroup("1Password connection", isExpanded: $showingOnePassword) {
+                OnePasswordSettings()
+                    .frame(height: 300)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+        }
+        .background(SettingsBackdrop())
+    }
+}
 
 private struct PasswordSettings: View {
     @Environment(BrowserState.self) private var state
@@ -426,132 +647,6 @@ private struct PasswordSettings: View {
 }
 
 // MARK: - AI
-
-private struct AISettings: View {
-    @Environment(BrowserState.self) private var state
-    @State private var keyDraft = ""
-    @State private var saved = false
-
-    var body: some View {
-        Form {
-            Section("Anthropic API key") {
-                SecureField("sk-ant-…", text: $keyDraft)
-                HStack {
-                    Button("Save to Keychain") {
-                        Keychain.writeAPIKey(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines))
-                        keyDraft = ""
-                        saved = true
-                    }
-                    .disabled(keyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
-
-                    Button("Remove") {
-                        Keychain.deleteAPIKey()
-                        saved = false
-                    }
-                    Spacer()
-                    if ClaudeClient.hasKey {
-                        Label("Key found", systemImage: "checkmark.circle.fill")
-                            .font(.caption).foregroundStyle(.green)
-                    } else {
-                        Label("No key", systemImage: "exclamationmark.circle")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                Text("Stored in your local keychain, not synced, and never written to disk by Ark. ANTHROPIC_API_KEY in the environment takes precedence.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-
-            Section("Tab grouping") {
-                Picker("AI engine (grouping and suggestions)", selection: Binding(
-                    get: { state.groupingEngine },
-                    set: { state.groupingEngine = $0; state.save() }
-                )) {
-                    ForEach(GroupingEngine.selectable) { engine in
-                        Text(engine.label).tag(engine)
-                    }
-                }
-
-                LabeledContent("Apple Intelligence") {
-                    if OnDeviceOrganizer.availability.isAvailable {
-                        Label("Ready", systemImage: "checkmark.circle.fill")
-                            .font(.caption).foregroundStyle(.green)
-                    } else {
-                        Label("Unavailable", systemImage: "exclamationmark.circle")
-                            .font(.caption).foregroundStyle(.orange)
-                    }
-                }
-                Text(OnDeviceOrganizer.availability.explanation)
-                    .font(.caption).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                LabeledContent("Will use") {
-                    Text(state.effectiveGroupingEngine == .appleIntelligence
-                         ? "Apple Intelligence — on-device"
-                         : "Claude — sends titles and hostnames")
-                        .font(.caption)
-                        .foregroundStyle(state.effectiveGroupingEngine == .appleIntelligence
-                                         ? AnyShapeStyle(.green) : AnyShapeStyle(.secondary))
-                }
-
-                Text("On-device grouping is private and free: no tab titles or hostnames leave this Mac, and it works offline. It handles up to \(TabOrganizer.onDeviceTabCap) tabs at a time. The Claude path is the fallback when Apple Intelligence is off or unsupported — it sends titles and hostnames only, never page content.")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Section("Command bar") {
-                Toggle("AI suggestions while typing", isOn: Binding(
-                    get: { state.aiSuggestionsEnabled },
-                    set: { state.aiSuggestionsEnabled = $0; state.save() }
-                ))
-                Text("Uses the engine selected under Tab grouping. On Apple Intelligence the query never leaves your Mac; on Claude it is sent to the API after a 400 ms pause. Either way, local history and bookmark matches appear instantly and never leave your Mac.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-
-            Section("Backups") {
-                BackupList()
-                Text("A copy of the tab list is kept before each save, at most one every ten minutes — and always when the tab count drops by three or more, which is the shape of the failure this exists for. The newest \(StateBackups.keep) are kept. Restoring copies the current file aside first, then needs a relaunch.")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Section("Memory") {
-                Picker("Snooze idle tabs after", selection: Binding(
-                    get: { state.snoozeMinutes },
-                    set: { state.snoozeMinutes = $0; state.save() }
-                )) {
-                    Text("Never").tag(0.0)
-                    Text("5 minutes").tag(5.0)
-                    Text("20 minutes").tag(20.0)
-                    Text("1 hour").tag(60.0)
-                    Text("3 hours").tag(180.0)
-                }
-                Text("WebKit gives every tab its own process, and a page's DOM and JavaScript heap are most of what it holds. Snoozing frees the page and keeps the tab: scroll position and back/forward history are preserved, and clicking the tab restores it. Tabs on screen are never snoozed, nor is anything playing audio or video. Ark also frees every background page immediately when macOS reports memory pressure.")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack {
-                    Text(state.snoozedCount == 0
-                         ? "No tabs snoozed right now."
-                         : "\(state.snoozedCount) tab\(state.snoozedCount == 1 ? "" : "s") snoozed.")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Snooze Background Tabs Now") {
-                        Task { await state.snoozeAllBackgroundTabs() }
-                    }
-                    .controlSize(.small)
-                }
-            }
-
-            Section("Page assistant") {
-                Text("Uses \(ClaudeClient.model). Page text is sent as context when you ask a question, and is labeled as untrusted data in the prompt.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-        }
-        .formStyle(.grouped)
-    }
-}
-
-
-// MARK: - 1Password
 
 private struct OnePasswordSettings: View {
     @Environment(BrowserState.self) private var state

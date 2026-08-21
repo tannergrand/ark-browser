@@ -21,6 +21,4 @@
   <rect x="86" y="86" width="852" height="852" fill="url(#violet)"/>
 </g>
 
-<circle cx="512" cy="512" r="196" fill="none" stroke="#FFFFFF" stroke-width="104"
-        stroke-linecap="round" stroke-dasharray="880 351"
-        transform="rotate(128 512 512)"/></svg>
+<path d="M386 662 A 196 196 0 1 1 638 662" fill="none" stroke="#FFFFFF" stroke-width="104" stroke-linecap="round"/></svg>

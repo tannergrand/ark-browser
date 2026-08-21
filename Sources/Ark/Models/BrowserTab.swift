@@ -52,6 +52,23 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     /// page can only replace it by being *more* saturated.
     @ObservationIgnored private var tintSource: TintCandidate?
 
+    /// True while the page has media playing.
+    ///
+    /// Event-driven, not polled: `requestMediaPlaybackState` exists but has to be
+    /// asked, which is the wrong shape for a badge that should appear the moment
+    /// a video starts. Media events don't bubble, but a capture-phase listener on
+    /// the document still sees them, so the page reports transitions instead.
+    var isPlayingAudio: Bool = false
+
+    /// Pauses everything playing. The badge doubles as the control, because a tab
+    /// you can see is making noise and can't silence from there is worse than no
+    /// badge at all.
+    @MainActor
+    func pauseMedia() async {
+        await webView.pauseAllMediaPlayback()
+        isPlayingAudio = false
+    }
+
     /// Snoozed: the page has been torn down to reclaim memory, and the tab is a
     /// placeholder until you click it.
     ///
@@ -160,6 +177,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
         installBlockCounter()
         installPasswordBridge()
         installNavBridge()
+        installMediaBridge()
         observe()
 
         if let url {
@@ -488,6 +506,37 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
     /// the page rather than in `decidePolicyFor`, because WebKit does not
     /// reliably surface modifier flags on `.linkActivated` — which is why
     /// shift-click peek silently did nothing.
+    /// Reports media start and stop. Injected at document start so a video that
+    /// autoplays before load finishes is still caught.
+    private func installMediaBridge() {
+        let script = WKUserScript(source: """
+        (() => {
+          let playing = 0;
+          const send = () => {
+            try { window.webkit.messageHandlers.arkMedia.postMessage(playing > 0); } catch (e) {}
+          };
+          // Media events do not bubble, so these are capture-phase on the document,
+          // which does see them and costs nothing while idle.
+          document.addEventListener('play', () => { playing++; send(); }, true);
+          const stop = () => { playing = Math.max(0, playing - 1); send(); };
+          document.addEventListener('pause', stop, true);
+          document.addEventListener('ended', stop, true);
+          document.addEventListener('emptied', stop, true);
+          // An SPA can strip the element without firing anything, so re-derive from
+          // the live elements while something is playing, and never otherwise.
+          setInterval(() => {
+            if (!playing) return;
+            const live = Array.from(document.querySelectorAll('audio,video'))
+              .filter(el => !el.paused && !el.ended).length;
+            if (live !== playing) { playing = live; send(); }
+          }, 4000);
+        })()
+        """, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        webView.configuration.userContentController.addUserScript(script)
+        webView.configuration.userContentController.add(MediaBridge(tab: self),
+                                                        name: "arkMedia")
+    }
+
     private func installNavBridge() {
         let script = WKUserScript(source: BrowserTab.navBridgeScript,
                                   injectionTime: .atDocumentStart, forMainFrameOnly: false)
@@ -591,6 +640,7 @@ final class BrowserTab: NSObject, Identifiable, WKNavigationDelegate, WKUIDelega
             // jumping straight from one site's colour to the next.
             themeTint = nil
             tintSource = nil
+            isPlayingAudio = false
         }
     }
 
@@ -659,5 +709,21 @@ private final class BlockCounterProxy: NSObject, WKScriptMessageHandler {
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let n = message.body as? Int else { return }
         Task { @MainActor in self.tab?.blockedCount = n }
+    }
+}
+
+
+/// Routes media start/stop from the page.
+final class MediaBridge: NSObject, WKScriptMessageHandler {
+    weak var tab: BrowserTab?
+    init(tab: BrowserTab) { self.tab = tab }
+
+    func userContentController(_ controller: WKUserContentController,
+                               didReceive message: WKScriptMessage) {
+        guard let playing = message.body as? Bool else { return }
+        Task { @MainActor in
+            guard let tab = self.tab, !tab.isSnoozed else { return }
+            tab.isPlayingAudio = playing
+        }
     }
 }

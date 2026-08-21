@@ -35,81 +35,53 @@ hex(0x0A0C11).setFill()
 squircle.fill()
 ctx.restoreGState()
 
-// --- Body: near-black, with just enough gradient to avoid looking like a flat
-// swatch. The old indigo-to-cyan wash was the loudest thing on the Dock; a dark
-// tile lets the mark be the only thing you read.
+// --- Body: a saturated gradient tile, the way Arc's is. All the colour lives
+// here so the mark can stay a single flat shape — the previous near-black tile
+// forced the mark to carry both the colour and the meaning.
 ctx.saveGState()
 squircle.setClip()
-let body = NSGradient(colors: [hex(0x161A22), hex(0x0D1016), hex(0x090B0F)],
+let body = NSGradient(colors: [hex(0x6B5BFF), hex(0x4028C9), hex(0x1B1252)],
                       atLocations: [0.0, 0.55, 1.0],
                       colorSpace: .sRGB)!
 body.draw(in: art, angle: -78)
 
-// One cool highlight behind the mark, very faint. Depth without colour.
-NSGradient(colors: [hex(0x2E5A7A, 0.30), hex(0x2E5A7A, 0.0)],
-           atLocations: [0.0, 1.0], colorSpace: .sRGB)!
-    .draw(in: art.insetBy(dx: side * 0.06, dy: side * 0.06),
-          relativeCenterPosition: NSPoint(x: 0, y: 0.12))
-
-// --- The mark: one hull, one cabin, one waterline. Centred as a *group* rather
-// than individually — centring the hull alone leaves the whole thing looking
-// low, because the cabin sits above it and carries visual weight.
-//
-// Simplified from the earlier version, which had a stacked roof and two
-// waterlines. At 32pt in the Dock those extra strokes closed up into a smudge.
-func fill(_ path: NSBezierPath, _ color: NSColor) {
-    color.setFill()
-    path.fill()
+// Three radial washes over the base, mesh-gradient style. Each carries a mid
+// stop at a quarter strength: a plain colour-to-clear ramp spreads across the
+// whole tile and turns the indigo into flat dusty pink, because NSGradient
+// sizes a radial to reach the corners of the rect it is drawn in.
+let wash = art.insetBy(dx: -side * 0.1, dy: -side * 0.1)
+func bloom(_ color: UInt32, _ alpha: CGFloat, x: CGFloat, y: CGFloat) {
+    NSGradient(colors: [hex(color, alpha), hex(color, alpha * 0.22), hex(color, 0)],
+               atLocations: [0.0, 0.42, 0.78], colorSpace: .sRGB)!
+        .draw(in: wash, relativeCenterPosition: NSPoint(x: x, y: y))
 }
+bloom(0xFF6B5E, 0.85, x:  0.86, y: -0.92)   // coral, bottom right
+bloom(0xFFB05E, 0.55, x: -0.88, y:  0.90)   // amber, top left
+bloom(0xB07BFF, 0.45, x:  0.90, y:  0.86)   // violet, top right
 
-// Proportions tuned by rendering at 64pt and looking: at that size a deep hull
-// and a wide cabin merge into one blob that reads like an arrow. A shallower,
-// wider hull with a narrower cabin keeps the boat silhouette legible.
-let markWidth = side * 0.66
-let hullDepth = side * 0.155
-let cabinHeight = side * 0.145
-let waterGap = side * 0.075
-let waterWeight = side * 0.034
-
-// Total height of hull + cabin + waterline, so the group can be centred.
-let markHeight = cabinHeight + hullDepth + waterGap + waterWeight
-let groupBottom = art.midY - markHeight / 2
-let waterY = groupBottom + waterWeight / 2
-let hullBottom = waterY + waterGap
-let deckY = hullBottom + hullDepth
-
-let hullLeft = art.midX - markWidth / 2
-let hullRight = art.midX + markWidth / 2
-
-// Hull: flat deck, curved bottom, tapered ends.
-let hull = NSBezierPath()
-hull.move(to: NSPoint(x: hullLeft, y: deckY))
-hull.curve(to: NSPoint(x: hullRight, y: deckY),
-           controlPoint1: NSPoint(x: art.midX - markWidth * 0.26, y: hullBottom - hullDepth * 0.75),
-           controlPoint2: NSPoint(x: art.midX + markWidth * 0.26, y: hullBottom - hullDepth * 0.75))
-hull.close()
-fill(hull, hex(0xFFFFFF, 0.96))
-
-// Cabin: one block, centred.
-let cabinWidth = markWidth * 0.34
-let cabin = NSBezierPath(roundedRect:
-    NSRect(x: art.midX - cabinWidth / 2, y: deckY,
-           width: cabinWidth, height: cabinHeight),
-    xRadius: side * 0.02, yRadius: side * 0.02)
-fill(cabin, hex(0xFFFFFF, 0.96))
-
-// Waterline: one stroke, narrower than the hull so the hull reads as sitting in
-// it rather than on it.
-let water = NSBezierPath()
-let waterInset = markWidth * 0.06
-water.move(to: NSPoint(x: hullLeft - waterInset, y: waterY))
-water.curve(to: NSPoint(x: hullRight + waterInset, y: waterY),
-            controlPoint1: NSPoint(x: art.midX - markWidth * 0.22, y: waterY + side * 0.035),
-            controlPoint2: NSPoint(x: art.midX + markWidth * 0.22, y: waterY - side * 0.035))
-water.lineWidth = waterWeight
-water.lineCapStyle = .round
-hex(0xFFFFFF, 0.68).setStroke()
-water.stroke()
+// --- The mark: one open ring. The boat is gone on purpose — Arc's mark is pure
+// geometry, and at 32pt in the Dock a hull, a cabin and a waterline collapsed
+// into a smudge no matter how they were proportioned. A single stroke does not.
+//
+// The opening sits at the bottom, centred, so it reads as a hatch rather than
+// as a letter C tipped on its side. 80° of gap: any narrower and the round caps
+// close it up at small sizes, any wider and the ring stops reading as a ring.
+//
+// Radius and weight are traded against each other rather than set independently:
+// at 16pt the inner counter is about four pixels across, and a heavier stroke
+// fills it in, at which point the ring reads as a solid blob.
+let ringRadius = side * 0.245
+let gap: CGFloat = 80
+let ring = NSBezierPath()
+ring.appendArc(withCenter: NSPoint(x: art.midX, y: art.midY),
+               radius: ringRadius,
+               startAngle: -90 + gap / 2,
+               endAngle: -90 - gap / 2 + 360,
+               clockwise: false)
+ring.lineWidth = side * 0.106
+ring.lineCapStyle = .round
+hex(0xFFFFFF, 0.96).setStroke()
+ring.stroke()
 
 ctx.restoreGState()
 
