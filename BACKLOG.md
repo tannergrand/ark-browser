@@ -25,18 +25,20 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 
 | # | Item | Priority | Notes |
 |---|------|----------|-------|
-| 1 | **Slimmer top strip with the sidebar hidden** | P2 | Your screenshot: the traffic-light strip is 26pt plus an 8pt gutter above the page, so ~34pt of empty chrome. The floor is whatever clears the traffic lights (~22pt) — worth checking whether the gutter can be shared rather than stacked. |
-| 2 | **Close animations, single and bulk** | P2 | Rows vanish instantly today. Bulk close especially — closing four tabs should read as four rows leaving, staggered, not the list jumping. `Motion.appear` already handles insertion; removal is a plain fade. |
-| 3 | **Loading shown on the container, not as a bar** | P2 | Today it's a 1.5pt `ProgressView` hairline under the URL pill. Instead animate the pill itself — a travelling sheen or a filling border tinted from the page — so loading reads as the chrome breathing rather than a separate widget. `JellyWave` already does a travelling packet on a shape; same idea, driven by `tab.progress` instead of keystrokes. |
-| 4 | **Audio indicator on a tab** | P2 | No public KVO for this — `requestMediaPlaybackState` has to be polled, which is the wrong shape for a per-row badge. Better: extend the existing page bridge to listen for `play`/`pause`/`ended` on media elements and report, which is event-driven and free when nothing is playing. A mute toggle is the natural companion, and snoozing already skips tabs with playing media, so the state is worth having anyway. |
-| 5 | Cross-origin iframe autofill | P2 | Okta/Auth0/Stripe login widgets get no bridge — `forMainFrameOnly: true`. Turning it off runs the password script in every frame on every page, which is a real surface-area increase. Your call, not mine. |
-| 6 | Rolling backups of `state.json` | P1 | One file, no history. You already lost a set of Today tabs to a state bug once. |
-| 7 | Private window | P2 | Every tab shares one cookie store today. |
-| 8 | TOTP autofill | P3 | Already parsed out of `op`; nothing fills it. |
-| 9 | Vault scoping for 1Password | P2 | Currently whole-account read access. |
-| 10 | Boosts — per-site CSS/JS | P3 | Arc parity. |
-| 11 | Reader mode | P3 | |
-| 12 | Claude driving the browser | P2 | Deferred to "v2" early on. Prompt injection is the actual design problem, not the tool surface. |
+| 1 | **Redesign the settings window** | P1 | Your report: General is a dumping ground, Passwords and 1Password should be one tab, and the section headers have no background so they don't read as headers. One tab per real group of settings — General, Appearance, Tabs, Privacy, Passwords, AI, Updates, Backups — and give the headers a surface. |
+| 2 | **Guard against two Ark instances** | P2 | Found while testing: launching the same bundle id from two paths gives two processes sharing one `state.json`, and they clobber each other's saves. Backups now soften it, but the fix is a single-instance check that activates the existing window instead. |
+| 3 | **Slimmer top strip with the sidebar hidden** | P2 | Your screenshot: the traffic-light strip is 26pt plus an 8pt gutter above the page, so ~34pt of empty chrome. The floor is whatever clears the traffic lights (~22pt) — worth checking whether the gutter can be shared rather than stacked. |
+| 4 | **Close animations, single and bulk** | P2 | Rows vanish instantly today. Bulk close especially — closing four tabs should read as four rows leaving, staggered, not the list jumping. `Motion.appear` already handles insertion; removal is a plain fade. |
+| 5 | **Loading shown on the container, not as a bar** | P2 | Today it's a 1.5pt `ProgressView` hairline under the URL pill. Instead animate the pill itself — a travelling sheen or a filling border tinted from the page — so loading reads as the chrome breathing rather than a separate widget. `JellyWave` already does a travelling packet on a shape; same idea, driven by `tab.progress` instead of keystrokes. |
+| 6 | **Audio indicator on a tab** | P2 | No public KVO for this — `requestMediaPlaybackState` has to be polled, which is the wrong shape for a per-row badge. Better: extend the existing page bridge to listen for `play`/`pause`/`ended` on media elements and report, which is event-driven and free when nothing is playing. A mute toggle is the natural companion, and snoozing already skips tabs with playing media, so the state is worth having anyway. |
+| 7 | Cross-origin iframe autofill | P2 | Okta/Auth0/Stripe login widgets get no bridge — `forMainFrameOnly: true`. Turning it off runs the password script in every frame on every page, which is a real surface-area increase. Your call, not mine. |
+| 8 | Rolling backups of `state.json` | P1 | One file, no history. You already lost a set of Today tabs to a state bug once. |
+| 9 | Private window | P2 | Every tab shares one cookie store today. |
+| 10 | TOTP autofill | P3 | Already parsed out of `op`; nothing fills it. |
+| 11 | Vault scoping for 1Password | P2 | Currently whole-account read access. |
+| 12 | Boosts — per-site CSS/JS | P3 | Arc parity. |
+| 13 | Reader mode | P3 | |
+| 14 | Claude driving the browser | P2 | Deferred to "v2" early on. Prompt injection is the actual design problem, not the tool surface. |
 
 ---
 
@@ -44,6 +46,7 @@ Priority tags: `P0` breaks something · `P1` next up · `P2` wanted · `P3` some
 
 *(Built and running in `Ark Staging.app`, not yet released.)*
 
+- **Rolling backups of `state.json`** — a copy before each save (throttled to ten minutes, and always on a sharp drop in tab count), newest 12 kept, with a restore list in Settings ▸ Backups. Verified against real state files: 10 and 11 tabs captured.
 - **Cursor no longer bleeds through floating panels** — `CursorShield` claims the cursor for the floating sidebar and the ⌘L overlay without taking clicks. Needs your eyes: hover behaviour can't be tested from a script.
 - **Faster command-bar suggestions** — shared session + prewarm, a 40-entry cache, debounce 400→180 ms, and a 2.5 s ceiling. Measured 489 → 340 ms per query, 1 ms on a repeat. Capping output to one line measured *slower* and was dropped.
 

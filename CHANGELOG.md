@@ -38,6 +38,61 @@ them.
 
 ---
 
+## Unreleased (staging) — rolling state backups
+
+Backlog Queue #6, and the only item on the list that protects work already lost
+once: an archive sweep read stale timestamps, closed a full set of Today tabs, and
+there was nothing to go back to.
+
+### Added
+
+- A copy of `state.json` is taken **before** each write — the one moment a
+  known-good state is still on disk, and one that demonstrably loaded.
+- Throttled to one every ten minutes, because `save()` runs on nearly every
+  interaction. **Except** when the tab count drops by three or more, which
+  bypasses the throttle: that is the exact shape of the original failure, and the
+  one moment a copy is worth more than the disk it costs.
+- Newest 12 kept, pruned by filename — the filename is the timestamp, so this
+  doesn't depend on filesystem dates being trustworthy.
+- **Settings ▸ Backups** lists them with tab counts, not just times: "12 tabs,
+  09:14" is a decision you can make; a filename isn't. Restoring copies the
+  current file aside first, then quits — reusing the running window would leave
+  live web views for tabs that no longer exist.
+- Tab counts are read with `JSONSerialization`, not the `Snapshot` struct, so an
+  old backup stays readable after the model changes shape.
+
+### Verified
+
+Ran against real state files in staging: backups written with 10 and 11 tabs
+captured, and the restore list reads them back.
+
+### Found while testing
+
+Launching the same bundle id from two paths gives **two processes sharing one
+`state.json`**, which clobber each other's saves. Backups soften it; a
+single-instance guard is queued.
+
+---
+
+## Unreleased (staging) — cursor, second attempt
+
+**The first attempt didn't work.** Cursor rects don't win this: WebKit calls
+`[cursor set]` directly while handling `mouseMoved`, and it receives those through
+its own tracking area, which is geometric and ignores whatever is drawn on top.
+AppKit would resolve our rect, then the page would re-assert its own a moment
+later.
+
+What works is not delivering the event: the local mouse monitor now swallows
+`mouseMoved` while the pointer is inside a registered shield, and sets the arrow
+itself. SwiftUI's `.onHover` uses `mouseEntered`/`mouseExited` rather than
+`mouseMoved`, so row highlighting is untouched.
+
+Verified geometry rather than trusting it: `covers point inside panel: true`,
+`covers point over page: false`, with the shield at `8,38 240×506` and hit tests
+still resolving past it to SwiftUI's container.
+
+---
+
 ## Unreleased (staging) — cursor stops bleeding through floating panels
 
 Backlog Queue #1.

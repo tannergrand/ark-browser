@@ -507,6 +507,13 @@ private struct AISettings: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
 
+            Section("Backups") {
+                BackupList()
+                Text("A copy of the tab list is kept before each save, at most one every ten minutes — and always when the tab count drops by three or more, which is the shape of the failure this exists for. The newest \(StateBackups.keep) are kept. Restoring copies the current file aside first, then needs a relaunch.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             Section("Memory") {
                 Picker("Snooze idle tabs after", selection: Binding(
                     get: { state.snoozeMinutes },
@@ -737,5 +744,65 @@ private struct GlassIntensitySlider: View {
         .frame(height: 54)
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .animation(Motion.settle, value: state.glassIntensity)
+    }
+}
+
+
+/// The restore list. Shows tab counts, not just timestamps — "12 tabs, 09:14" is
+/// a decision you can make; a bare filename isn't.
+private struct BackupList: View {
+    @Environment(BrowserState.self) private var state
+    @State private var entries: [StateBackups.Entry] = []
+    @State private var message: String?
+    @State private var confirming: StateBackups.Entry?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if entries.isEmpty {
+                Text("No backups yet — one is written before the next save.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            ForEach(entries.prefix(6)) { entry in
+                HStack(spacing: 8) {
+                    Text(entry.date, format: .dateTime.month().day().hour().minute())
+                        .font(.system(size: 12).monospacedDigit())
+                    Text("\(entry.tabCount) tab\(entry.tabCount == 1 ? "" : "s")")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Restore") { confirming = entry }
+                        .controlSize(.small)
+                }
+            }
+            if entries.count > 6 {
+                Text("+\(entries.count - 6) older")
+                    .font(.caption).foregroundStyle(.tertiary)
+            }
+            if let message {
+                Text(message).font(.caption).foregroundStyle(.secondary)
+            }
+            Button("Reveal in Finder") {
+                NSWorkspace.shared.selectFile(nil,
+                    inFileViewerRootedAtPath: StateBackups.directory.path)
+            }
+            .controlSize(.small)
+        }
+        .onAppear { entries = StateBackups.list() }
+        .alert("Restore this backup?",
+               isPresented: Binding(get: { confirming != nil },
+                                    set: { if !$0 { confirming = nil } })) {
+            Button("Cancel", role: .cancel) { confirming = nil }
+            Button("Restore and Quit") {
+                if let entry = confirming {
+                    if let failure = state.restoreBackup(entry) {
+                        message = failure
+                    } else {
+                        NSApp.terminate(nil)
+                    }
+                }
+                confirming = nil
+            }
+        } message: {
+            Text("Your current tab list is copied aside first. Ark quits so the restored state loads cleanly on next launch — reusing the running window would leave web views for tabs that no longer exist.")
+        }
     }
 }

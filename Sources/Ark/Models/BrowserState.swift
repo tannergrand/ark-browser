@@ -1722,7 +1722,37 @@ final class BrowserState {
             sidebarAutoHide: sidebarAutoHide
         )
         guard let data = try? JSONEncoder().encode(shot) else { return }
+        // Copy the outgoing file aside before replacing it. This is the only
+        // moment a known-good state is still on disk.
+        let newCount = allTabs.count
+        if StateBackups.shouldBackUp(lastBackup: lastBackupAt, now: Date(),
+                                     previousTabCount: lastSavedTabCount,
+                                     newTabCount: newCount) {
+            if StateBackups.record(existing: Self.storeURL) != nil {
+                lastBackupAt = Date()
+            }
+        }
+        lastSavedTabCount = newCount
+
         try? data.write(to: Self.storeURL, options: .atomic)
+    }
+
+    @ObservationIgnored private var lastBackupAt: Date?
+    /// What the last written snapshot held, so a sharp drop can be noticed.
+    @ObservationIgnored private var lastSavedTabCount: Int = 0
+
+    /// Puts a backup back and reloads from it. Returns nil on success, or a
+    /// message to show.
+    @MainActor
+    func restoreBackup(_ entry: StateBackups.Entry) -> String? {
+        do {
+            try StateBackups.restore(entry, to: Self.storeURL)
+        } catch {
+            return error.localizedDescription
+        }
+        // Reloading in place would leave live web views for tabs that no longer
+        // exist. Relaunching is the honest way to apply it.
+        return nil
     }
 
     private func restore(_ s: TabSnap, tier: TabTier) -> BrowserTab {

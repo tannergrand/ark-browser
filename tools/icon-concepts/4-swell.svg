@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+  <linearGradient id="base" x1="0" y1="0" x2="0.35" y2="1">
+    <stop offset="0" stop-color="#6B5BFF"/><stop offset="0.55" stop-color="#4028C9"/><stop offset="1" stop-color="#1B1252"/>
+  </linearGradient>
+  <radialGradient id="warm" cx="0.86" cy="0.9" r="0.85">
+    <stop offset="0" stop-color="#FF6B5E" stop-opacity="0.95"/><stop offset="0.55" stop-color="#FF6B5E" stop-opacity="0.25"/><stop offset="1" stop-color="#FF6B5E" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="peach" cx="0.14" cy="0.08" r="0.7">
+    <stop offset="0" stop-color="#FFC07A" stop-opacity="0.8"/><stop offset="1" stop-color="#FFC07A" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="violet" cx="0.9" cy="0.1" r="0.6">
+    <stop offset="0" stop-color="#C08BFF" stop-opacity="0.65"/><stop offset="1" stop-color="#C08BFF" stop-opacity="0"/>
+  </radialGradient>
+  <clipPath id="tile"><rect x="86" y="86" width="852" height="852" rx="196" ry="196"/></clipPath>
+</defs>
+<g clip-path="url(#tile)">
+  <rect x="86" y="86" width="852" height="852" fill="url(#base)"/>
+  <rect x="86" y="86" width="852" height="852" fill="url(#warm)"/>
+  <rect x="86" y="86" width="852" height="852" fill="url(#peach)"/>
+  <rect x="86" y="86" width="852" height="852" fill="url(#violet)"/>
+</g>
+
+<g fill="none" stroke-linecap="round">
+  <path d="M262 566 C 380 372 644 760 762 470" stroke="#FFFFFF" stroke-width="92"/>
+  <path d="M300 690 C 400 620 624 758 724 664" stroke="#FFFFFF" stroke-opacity="0.42" stroke-width="46"/>
+</g></svg>

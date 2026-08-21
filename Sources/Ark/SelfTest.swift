@@ -819,6 +819,42 @@ enum SelfTest {
         check("suggestion parsing survives numbering and fences",
               !OnDeviceSuggestions.parse("```\n1. GitHub|https://github.com\n```").isEmpty)
 
+        // State backups. The policy and the pruning, since the point is that a
+        // bad save can't take the only copy with it.
+        let backupNow = Date()
+        check("first save always backs up",
+              StateBackups.shouldBackUp(lastBackup: nil, now: backupNow,
+                                        previousTabCount: 5, newTabCount: 5))
+        check("saves inside the window don't churn",
+              !StateBackups.shouldBackUp(lastBackup: backupNow.addingTimeInterval(-60),
+                                         now: backupNow,
+                                         previousTabCount: 5, newTabCount: 5),
+              "save() runs on nearly every interaction")
+        check("a save after the window backs up",
+              StateBackups.shouldBackUp(lastBackup: backupNow.addingTimeInterval(-1200),
+                                        now: backupNow,
+                                        previousTabCount: 5, newTabCount: 5))
+        check("a sharp drop in tabs bypasses the throttle",
+              StateBackups.shouldBackUp(lastBackup: backupNow.addingTimeInterval(-5),
+                                        now: backupNow,
+                                        previousTabCount: 9, newTabCount: 1),
+              "this is the exact failure that lost a set of Today tabs once")
+        check("closing one tab is not treated as suspicious",
+              !StateBackups.shouldBackUp(lastBackup: backupNow.addingTimeInterval(-5),
+                                         now: backupNow,
+                                         previousTabCount: 9, newTabCount: 8))
+        check("tab counting doesn't depend on the Snapshot struct",
+              {
+                  let json = """
+                  {"todayNodes":[{"tab":{}},{"children":[{"tab":{}},{"tab":{}}]}],
+                   "pinned":[{"tab":{}}],"favorites":[{}]}
+                  """
+                  return StateBackups.tabCount(in: Data(json.utf8)) == 5
+              }(),
+              "an old backup must stay readable after the model changes")
+        check("tab counting survives junk",
+              StateBackups.tabCount(in: Data("not json".utf8)) == 0)
+
         check("tint scales with intensity",
               GlassRamp.tintOpacity(1.0) > GlassRamp.tintOpacity(0.0),
               String(format: "%.3f vs %.3f", GlassRamp.tintOpacity(1.0), GlassRamp.tintOpacity(0.0)))

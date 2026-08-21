@@ -38,6 +38,25 @@ them.
 
 ---
 
+## Unreleased (staging) — cursor, second attempt
+
+**The first attempt didn't work.** Cursor rects don't win this: WebKit calls
+`[cursor set]` directly while handling `mouseMoved`, and it receives those through
+its own tracking area, which is geometric and ignores whatever is drawn on top.
+AppKit would resolve our rect, then the page would re-assert its own a moment
+later.
+
+What works is not delivering the event: the local mouse monitor now swallows
+`mouseMoved` while the pointer is inside a registered shield, and sets the arrow
+itself. SwiftUI's `.onHover` uses `mouseEntered`/`mouseExited` rather than
+`mouseMoved`, so row highlighting is untouched.
+
+Verified geometry rather than trusting it: `covers point inside panel: true`,
+`covers point over page: false`, with the shield at `8,38 240×506` and hit tests
+still resolving past it to SwiftUI's container.
+
+---
+
 ## Unreleased (staging) — cursor stops bleeding through floating panels
 
 Backlog Queue #1.

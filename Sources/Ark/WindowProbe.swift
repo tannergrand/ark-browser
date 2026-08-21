@@ -23,13 +23,16 @@ enum WindowProbe {
                 NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             }
         }
-        if ProcessInfo.processInfo.environment["ARK_PROBE_REVEAL_SIDEBAR"] == "1" {
-            DispatchQueue.main.asyncAfter(deadline: .now() + max(1, delay - 3)) {
+        // Revealing three seconds early let the edge monitor hide the panel again
+        // before the report ran — the real pointer sits over the page, which is
+        // exactly the "move away" gesture. Reveal, let it lay out, then look.
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            if ProcessInfo.processInfo.environment["ARK_PROBE_REVEAL_SIDEBAR"] == "1" {
                 state.sidebarAutoHide = true
-                state.revealSidebar()
+                state.sidebarRevealed = true
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay + 0.6) {
             reportCursorShields()
             // State first: a colour reading is meaningless without knowing what
             // the app thought it was drawing.
@@ -70,6 +73,17 @@ enum WindowProbe {
                        frame.minX, frame.minY, frame.width, frame.height,
                        hit.map { String(describing: type(of: $0)) } ?? "nil"))
             say("  cursor rect registered: \(!shield.trackingAreas.isEmpty)")
+        }
+
+        // The monitor's actual question, asked at two points: one inside the
+        // panel, one out over the page. Cursor rects were the first attempt and
+        // silently lost to WebKit; this is the check that matters now.
+        if let shield = found.first {
+            let frame = shield.convert(shield.bounds, to: nil)
+            let inside = NSPoint(x: frame.midX, y: frame.midY)
+            let outside = NSPoint(x: frame.maxX + 200, y: frame.midY)
+            say("  covers point inside panel: \(CursorShield.coversPointer(inside, in: window))")
+            say("  covers point over page:   \(CursorShield.coversPointer(outside, in: window))")
         }
     }
 
